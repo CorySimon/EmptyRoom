@@ -11,10 +11,12 @@
 #include <stdlib.h>
 using namespace std;
 #include "Framework.h"
+#include "Forcefield.h"
 
 int main(void) {
 
-    Framework framework("IRMOF-1_clean.cssr", true);
+    Framework framework("IRMOF-1_clean", true);
+    Forcefield forcefield("UFF", true);
 
 	return 0;
 }

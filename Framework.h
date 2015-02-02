@@ -7,19 +7,24 @@
 using namespace std;
 #include<string>
 #include<vector>
-#include "atom.h"
 
 #ifndef FRAMEWORK_H_
 #define FRAMEWORK_H_
 
 class Framework {
 public:
-	Framework(string cssrfilename, bool verbose=false); // constructor
+	Framework(string structurname, bool verbose=false); // constructor
 
 	double a, b, c; // unit cell dimensions
 	double alpha, beta, gamma; // unit cell angles
 	int noatoms; // number of atoms
-	vector<Atom> atoms; // atoms of the framework
+    // store atoms in crystal structure
+	vector<double> x_f; // fractional coord
+	vector<double> y_f; // fractional coord
+	vector<double> z_f; // fractional coord
+    vector<double> mass;
+    vector<string> identity; // identity
+
 	double density; // crystal density
 	double volume_unitcell; // volume of unit cell (A^3)
 };

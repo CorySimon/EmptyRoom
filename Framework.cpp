@@ -10,13 +10,13 @@
 #include <sstream>
 #include "Framework.h"
 
-Framework::Framework(string cssrfilename, bool verbose /*=false*/) {
+Framework::Framework(string structurename, bool verbose /*=false*/) {
 	//
 	// Read cssr file to import framework information
 	//
-	ifstream cssr(cssrfilename.c_str());
+	ifstream cssr((structurename + ".cssr").c_str());
 	if (cssr.fail()) {
-		printf("CSSR file %s failed to import!", cssrfilename.c_str());
+		printf("CSSR file %s failed to import!", (structurename + ".cssr").c_str());
 		exit(EXIT_FAILURE);
 	}
 
@@ -40,17 +40,22 @@ Framework::Framework(string cssrfilename, bool verbose /*=false*/) {
 	input >> noatoms;
 
 	// read atoms
-	atoms.resize(noatoms); // give size of atom vector
+	x_f.resize(noatoms); // give size to vectors
+    y_f.resize(noatoms);
+    z_f.resize(noatoms);
+    identity.resize(noatoms);
+    mass.resize(noatoms);
+
 	getline(cssr,line); // waste a line
-	for (int atomnum = 0; atomnum < noatoms; atomnum++) {
+	for (int i = 0; i < noatoms; i++) {
 		getline(cssr,line);
 		input.str(line); input.clear();
 		int junk; string junk2;
-		input >> junk >> atoms[atomnum].identity >> atoms[atomnum].x_f >> atoms[atomnum].y_f >> atoms[atomnum].z_f;
+		input >> junk >> identity[i] >> x_f[i] >> y_f[i] >> z_f[i];
 		// reflect fractional coordiantes in [0,1]
-		atoms[atomnum].x_f = fmod(atoms[atomnum].x_f, 1.0);
-		atoms[atomnum].y_f = fmod(atoms[atomnum].y_f, 1.0);
-		atoms[atomnum].z_f = fmod(atoms[atomnum].z_f, 1.0);
+		x_f[i] = fmod(x_f[i], 1.0);
+		y_f[i] = fmod(y_f[i], 1.0);
+		z_f[i] = fmod(z_f[i], 1.0);
 	}
 
 	//
@@ -88,14 +93,14 @@ Framework::Framework(string cssrfilename, bool verbose /*=false*/) {
     for (int k = 0; k < noatoms; k++) {  // loop over framework atoms
         bool found = false; // ensure each atom is found
         for (int a = 0; a < n_masses; a++) {  // loop over masses.def
-            if (atoms[k].identity == identities[a]) {  // if frameworkatom matches pseudoatom
+            if (identity[k] == identities[a]) {  // if frameworkatom matches pseudoatom
                 found = true;
-                atoms[k].mass = masses[a];
+                mass[k] = masses[a];
                 break;
             }
         }
         if (! found) {
-            printf("Atom %s not present in %s.\n", atoms[k].identity.c_str(), massesfilename.c_str());
+            printf("Atom %s not present in %s.\n", identity[k].c_str(), massesfilename.c_str());
             exit(EXIT_FAILURE);
         }
     }
@@ -107,7 +112,7 @@ Framework::Framework(string cssrfilename, bool verbose /*=false*/) {
     volume_unitcell = v_unit_piped * a * b * c;
     double mass_unitcell = 0.0;
 	for (int k = 0; k < noatoms; k++) {
-		mass_unitcell += atoms[k].mass;
+		mass_unitcell += mass[k];
 	}
 	density = mass_unitcell/ volume_unitcell * 1660.53892; // (kg/m3) conversion factor for amu/A3 ---> kg/m3
 
@@ -120,7 +125,7 @@ Framework::Framework(string cssrfilename, bool verbose /*=false*/) {
 		printf("no of atoms: %d\n", noatoms);
 		printf("Atom x_f y_f z_f mass\n---------------\n");
 		for (int i = 0; i < noatoms; i++) {
-			printf("%s %f %f %f %f\n", atoms[i].identity.c_str(), atoms[i].x_f, atoms[i].y_f, atoms[i].z_f, atoms[i].mass);
+			printf("%s %f %f %f %f\n", identity[i].c_str(), x_f[i], y_f[i], z_f[i], mass[i]);
 		}
 		printf("\nCrystal density (kg/m3) = %f\n", density);
 	}
