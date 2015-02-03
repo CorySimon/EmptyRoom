@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 	// PREPARE GRID FILE
 	//
 	FILE * gridfile;
-	char gridfilename[256] = "../sim_data/grids/";
+	char gridfilename[256] = "data/grids/";
 	strcat(gridfilename, framework.name.c_str());
 	strcat(gridfilename,"_"); strcat(gridfilename, parameters.adsorbate.c_str());
 	strcat(gridfilename,"_"); strcat(gridfilename, forcefield.name.c_str());
@@ -196,19 +196,19 @@ int main(int argc, char *argv[]) {
 	double t0 = read_timer();
 	if (parameters.verbose) printf("Starting loop to write grid...\n# x-grid points: %d\n", N_x);
 
-	int count_grid_pts = 0;
 	for (int i=0; i<3; i++) {
 		for (int j=0; j<3; j++){
 			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
 		}
-	}// TODO: remove
+	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
+
+	int count_grid_pts = 0;
     for (int i = 0; i < N_x; i++) {
         computegridsheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
         		d_y_f_gridpoints,
         		d_zy_energies,
         		d_framework_atoms,
         		parameters,
-//        		framework.t_matrix,
         		x_f_gridpoints[i]);
         gpuErrchk( cudaPeekAtLastError() );
         gpuErrchk( cudaDeviceSynchronize() );

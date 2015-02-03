@@ -1,0 +1,13 @@
+Forcefield UFF noble_gas_zeolitesOO.def PPNforcefield.def TexasMOFforcefield.def CaleroCH4zeolites.def testforcefield.def # store as .def
+
+GridResolution 1.0 A
+CutoffRadius 12.5 A
+VoidFractionEnergyThreshold 0
+GridOutputFormat txt # write txt for henry calcs, or cube for vis
+
+Temperature 298 K
+
+FeynmanHibbs 0 # put "1" or "0"
+
+verbosemode 1
+PocketBlocking 1
