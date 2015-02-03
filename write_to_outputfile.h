@@ -85,6 +85,10 @@ void write_settings_to_outputfile(FILE * outputfile,
     fprintf(outputfile, "\nGrid: %d by %d by %d points. Total grid points = %d\n",
     		parameters.N_x, parameters.N_y, parameters.N_z,
     		parameters.N_x * parameters.N_y * parameters.N_z);
+    double da = framework.a / (parameters.N_x - 1); // actual grid spacing
+    double db = framework.b / (parameters.N_y - 1);
+    double dc = framework.c / (parameters.N_z - 1);
+    fprintf(outputfile, "    Actual grid spacing: da = %f A, db = %f A, dc = %f A\n", da, db, dc);
 }
 
 

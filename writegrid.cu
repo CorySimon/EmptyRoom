@@ -89,9 +89,6 @@ int main(int argc, char *argv[]) {
     int N_y = (int) ceil(framework.b / parameters.grid_resolution);
     int N_z = (int) ceil(framework.c / parameters.grid_resolution);
     parameters.N_x = N_x; parameters.N_y = N_y; parameters.N_z = N_z;
-    double dx = framework.a / (N_x - 1); // actual grid spacing
-    double dy = framework.b / (N_y - 1);
-    double dz = framework.c / (N_z - 1);
 
     // pointer array of fractional grid points
     double * x_f_gridpoints = (double *) malloc(N_x * sizeof(double));
