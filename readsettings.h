@@ -18,10 +18,10 @@ using namespace std;
 
 double get_adsorbate_MW_of(string adsorbate) {
     double adsorbatemolecularweight = -1.0;
-    string massesfilename = "../sim_data/masses.def";
+    string massesfilename = "data/masses.def";
     ifstream massesfile(massesfilename.c_str());
     if (massesfile.fail()) {
-        printf("Masses file ../sim_data/masses.def not present!\n");
+        printf("Masses file data/masses.def not present!\n");
         exit(EXIT_FAILURE);
     }
     string line;
@@ -39,7 +39,7 @@ double get_adsorbate_MW_of(string adsorbate) {
     }
     if (adsorbatemolecularweight < 0.0)
     {
-        printf("No molecular weight for adsorbate %s in ../sim_data/masses.def\n", adsorbate.c_str());
+        printf("No molecular weight for adsorbate %s in data/masses.def\n", adsorbate.c_str());
         exit(EXIT_FAILURE);
     }
     massesfile.close();
@@ -112,11 +112,11 @@ void readunitcellreplicationfile(GridParameters & parameters, string frameworkna
 	parameters.replication_factor_a = -1; // initialize
 	parameters.replication_factor_b = -1;
 	parameters.replication_factor_c = -1;
-	string uc_filename = "../sim_data/uc_replications/" + frameworkname + ".uc";
+	string uc_filename = "data/uc_replications/" + frameworkname + ".uc";
 	ifstream ucfile(uc_filename.c_str());
 	if (ucfile.fail())
 	{
-		printf("unit cell replication factor file not found in ../sim_data/uc_replications/$frameworkname.uc\n");
+		printf("unit cell replication factor file not found in data/uc_replications/$frameworkname.uc\n");
 		exit(EXIT_FAILURE);
 	}
 

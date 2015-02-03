@@ -14,7 +14,7 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 	//
 	// Read cssr file to import framework information
 	//
-	ifstream cssr((structurename + ".cssr").c_str());
+	ifstream cssr(("data/structures/" + structurename + ".cssr").c_str());
 	if (cssr.fail()) {
 		printf("CSSR file %s failed to import!", (structurename + ".cssr").c_str());
 		exit(EXIT_FAILURE);
@@ -63,7 +63,7 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 	//
 	// Read masses.def file to import atom masses
 	//
-	string massesfilename = "../sim_data/masses.def";
+	string massesfilename = "data/masses.def";
 	ifstream massesfile(massesfilename.c_str());
     if (massesfile.fail()) {
         printf("File %s not present.\n", massesfilename.c_str());

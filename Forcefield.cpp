@@ -15,9 +15,9 @@
 Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
 	// load forcefield
     name = forcefield;
-    ifstream forcefieldfile(("../sim_data/forcefields/" + forcefield + ".def").c_str());
+    ifstream forcefieldfile(("data/forcefields/" + forcefield + ".def").c_str());
     if (forcefieldfile.fail()) {
-    	printf("Forcefield file %s did not load.\n", ("../sim_data/forcefields/" + forcefield + ".def").c_str());
+    	printf("Forcefield file %s did not load.\n", ("data/forcefields/" + forcefield + ".def").c_str());
         exit(EXIT_FAILURE);
     }
 

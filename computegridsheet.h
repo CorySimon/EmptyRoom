@@ -15,7 +15,6 @@ using namespace std;
 #include "datatypes.h"
 
 
-
 #ifndef COMPUTEGRIDSHEET_H_
 #define COMPUTEGRIDSHEET_H_
 
@@ -36,7 +35,6 @@ __global__ void computegridsheet(
      double * zy_energies,
      Particle_f * framework_atoms,
      GridParameters parameters,
-//     double t_matrix[3][3],
      double x_f)
 {
     double energy = 0.0; // each thread computes an energy at a particular point

@@ -51,7 +51,7 @@ struct GridParameters {
     int replication_factor_b;
     int replication_factor_c;
 
-    // TODO why not use framework.t_matrix
+    // TODO why not use framework.t_matrix? It will not pass correctly to cuda kernal. not sure why
     double t_matrix[3][3];
 };
 
