@@ -116,10 +116,34 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 	}
 	density = mass_unitcell/ volume_unitcell * 1660.53892; // (kg/m3) conversion factor for amu/A3 ---> kg/m3
 
+	//
+	// Compute transformation matrices
+	//
+    t_matrix[0][0] = a;
+    t_matrix[0][1] = b * cos(gamma);
+    t_matrix[0][2] = c * cos(beta);
+    t_matrix[1][0] = 0.0;
+    t_matrix[1][1] = b * sin(gamma);
+    t_matrix[1][2] = c * (cos(alpha) - cos(beta) * cos(gamma)) / sin(gamma);
+    t_matrix[2][0] = 0.0;
+    t_matrix[2][1] = 0.0;
+    t_matrix[2][2] = c * v_unit_piped / sin(gamma);
+
+    inv_t_matrix[0][0] = 1.0 / a;
+    inv_t_matrix[0][1] = - cos(gamma) / a / sin(gamma);
+    inv_t_matrix[0][2] = (cos(alpha) * cos(gamma) - cos(beta)) / (a * v_unit_piped * sin(gamma));
+    inv_t_matrix[1][0] = 0.0;
+    inv_t_matrix[1][1] = 1.0 / b / sin(gamma);
+    inv_t_matrix[1][2] = (cos(beta) * cos(gamma) - cos(alpha)) / (b * v_unit_piped * sin(gamma));
+    inv_t_matrix[2][0] = 0.0;
+    inv_t_matrix[2][1] = 0.0;
+    inv_t_matrix[2][2] = sin(gamma) / (c * v_unit_piped);
+
     //
     // If verbose, print off info
     //
 	if (verbose) {
+		// print framework info
 		printf("a = %f, b = %f, c = %f\n", a, b, c);
 		printf("alpha = %f, beta = %f, gamma = %f\n", alpha*180/M_PI, beta*180/M_PI, gamma*180/M_PI);
 		printf("no of atoms: %d\n", noatoms);
@@ -127,7 +151,27 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 		for (int i = 0; i < noatoms; i++) {
 			printf("%s %f %f %f %f\n", identity[i].c_str(), x_f[i], y_f[i], z_f[i], mass[i]);
 		}
+
 		printf("\nCrystal density (kg/m3) = %f\n", density);
+
+		// print transformation matrix
+		printf("Transformation matrix, Fraction to Cartesian:\n");
+		for (int i = 0; i < 3; i++) {
+	        for (int j = 0; j < 3; j++) {
+	            printf("  %f", t_matrix[i][j]);
+	            if (j == 2) printf("\n");
+	        }
+	    }
+
+		// print inverse transformation matrix
+		printf("Transformation matrix, Cartesian to fractional:\n");
+		for (int i = 0; i < 3; i++) {
+	        for (int j = 0; j < 3; j++) {
+	            printf("  %f", inv_t_matrix[i][j]);
+	            if (j == 2) printf("\n");
+	        }
+	    }
+
 	}
 }
 

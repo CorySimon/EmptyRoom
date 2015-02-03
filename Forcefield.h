@@ -17,6 +17,7 @@ public:
 	Forcefield(string forcefield, bool verbose=true);
 
     int nointeractions; // number of interactions defined
+    string name;
     vector<double> epsilon; // LJ parameter units: K
     vector<double> sigma; // LJ parameter units: A
     vector<string> identity; // labels of atoms that correspond to framework and adsorbate objects

@@ -27,6 +27,10 @@ public:
 
 	double density; // crystal density
 	double volume_unitcell; // volume of unit cell (A^3)
+
+	// for transferring between fractional and Cartesian coords
+    double t_matrix[3][3]; // transformation matrix from fractional to Cartesian
+    double inv_t_matrix[3][3]; // transformation matrix from Cartesian to fractional
 };
 
 #endif /* FRAMEWORK_H_ */
