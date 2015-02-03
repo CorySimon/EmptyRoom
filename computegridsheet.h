@@ -6,6 +6,14 @@
  */
 #include <cuda.h>
 #include<assert.h>
+using namespace std;
+#include<string>
+#include<cstdlib> // for "exit"
+#include<vector>
+#include <limits>
+#include <complex>
+#include "datatypes.h"
+
 
 
 #ifndef COMPUTEGRIDSHEET_H_
@@ -13,7 +21,7 @@
 
 #define min_r .000000000001  // don't want to divide by zero...
 
-inline __device__ void frac_to_cart(double t_matrix[][3],
+inline __device__ void d_frac_to_cart(double t_matrix[][3],
 		double x_f, double y_f, double z_f,
 		double & x, double & y, double & z)
 { // compute Cartesian coordinates from fractional
@@ -28,7 +36,7 @@ __global__ void computegridsheet(
      double * zy_energies,
      Particle_f * framework_atoms,
      GridParameters parameters,
-     double t_matrix[][3],
+//     double t_matrix[3][3],
      double x_f)
 {
     double energy = 0.0; // each thread computes an energy at a particular point
@@ -39,17 +47,13 @@ __global__ void computegridsheet(
     if ((z_index > (parameters.N_z - 1)) || (y_index > (parameters.N_y - 1)))
         return;
 
-    // TODO remove these after checking
-    assert(z_index < parameters.N_z);
-    assert(y_index < parameters.N_y);
-
     // which fractional coordinate z_f and y_f is this thread responsible for?
     double z_f = z_f_gridpoints[z_index]; // local copy of z_f
     double y_f = y_f_gridpoints[y_index]; // local copy of y_f
 
     // set up Carteisan coordinates for insertion point and framework
     double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
-    frac_to_cart(t_matrix, x_f, y_f, z_f, x, y, z);
+    d_frac_to_cart(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
     double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; // cartesian coords of framework (changes inside loop)
 
     for (int i = -parameters.replication_factor_a; i <=parameters.replication_factor_a; i++) { // direction of x and a
@@ -63,7 +67,7 @@ __global__ void computegridsheet(
                     double y_f_framework = framework_atoms[framework_atom_index].y_f + j;
                     double z_f_framework = framework_atoms[framework_atom_index].z_f + k;
 
-                    frac_to_cart(t_matrix,
+                    d_frac_to_cart(parameters.t_matrix,
                     		x_f_framework, y_f_framework, z_f_framework,
                     		x_framework, y_framework, z_framework);
 

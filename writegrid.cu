@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include<cuda.h>
+#include <cuda_runtime.h>
 using namespace std;
 #include "readsettings.h"
 #include "datatypes.h"
@@ -12,6 +13,16 @@ using namespace std;
 #include "write_to_outputfile.h"
 #include "computegridsheet.h"
 #include "load_fast_particle_f_array.h"
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess)
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
 
 #define SQRT_N_THREADS 16 // a block may have a max of 512 threads... so 16x16 is max.
 // functions to ensure communication with GPU works ?
@@ -153,7 +164,7 @@ int main(int argc, char *argv[]) {
 	// Parallelization strategy: pass sheets of the grid to the GPU at a time, sheets are defind by x = constant
 	//
 	// energies at zy grid sheet. entry k+j*N_z is the energy at point z=k*dz, y = j*dy
-	double * zy_energies = (double *) malloc(N_z * N_y * sizeof(double));
+	double * h_zy_energies = (double *) malloc(N_z * N_y * sizeof(double));
 
 	//
 	//  Move data to GPU device; "d_" indicates this is data for the device
@@ -186,15 +197,25 @@ int main(int argc, char *argv[]) {
 	if (parameters.verbose) printf("Starting loop to write grid...\n# x-grid points: %d\n", N_x);
 
 	int count_grid_pts = 0;
+	for (int i=0; i<3; i++) {
+		for (int j=0; j<3; j++){
+			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
+		}
+	}// TODO: remove
     for (int i = 0; i < N_x; i++) {
-        computegridsheet <<<dimGrid,dimBlock>>> (d_z_f_gridpoints, d_y_f_gridpoints,
-        		d_zy_energies, d_framework_atoms,
-        		parameters, framework.t_matrix,
+        computegridsheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
+        		d_y_f_gridpoints,
+        		d_zy_energies,
+        		d_framework_atoms,
+        		parameters,
+//        		framework.t_matrix,
         		x_f_gridpoints[i]);
+        gpuErrchk( cudaPeekAtLastError() );
+        gpuErrchk( cudaDeviceSynchronize() );
         cudaDeviceSynchronize();
 
         // get energies from device
-        CUDA_CALL(cudaMemcpy(zy_energies, d_zy_energies, N_z * N_y * sizeof(double), cudaMemcpyDeviceToHost));
+        CUDA_CALL(cudaMemcpy(h_zy_energies, d_zy_energies, N_z * N_y * sizeof(double) , cudaMemcpyDeviceToHost));
         cudaDeviceSynchronize();
 
         // write energies to file
@@ -202,7 +223,7 @@ int main(int argc, char *argv[]) {
             for (int j=0; j < N_y; j++) {
                 int count = 0;
                 for(int k = 0; k < N_z; k++) {
-                    fprintf(gridfile, "% 13.6E ", zy_energies[k + j * N_z] * 8.314 / 1000); // kJ/mol
+                    fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z] * 8.314 / 1000); // kJ/mol
                     count ++;
                     if (count == 6) {
                         fprintf(gridfile, "\n");
@@ -218,7 +239,7 @@ int main(int argc, char *argv[]) {
             for (int j = 0; j < N_y; j++) {
                 for(int k = 0; k < N_z; k++) {
                     count_grid_pts += 1;
-                    fprintf(gridfile, "% 13.6E ", zy_energies[k + j * N_z]);
+                    fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z]);
                     if ( k == (N_z - 1))
                         fprintf(gridfile, "\n"); // new line for every pencil of z's
                 }

@@ -32,6 +32,7 @@ void write_settings_to_outputfile(FILE * outputfile,
     fprintf(outputfile, "    a = %f A; b = %f A; c = %f A\n    alpha = %f, beta = %f, gamma = %f\n",
     		framework.a, framework.b, framework.c,
     		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
+    fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
 	for (int a = 0 ; a < forcefield.nointeractions; a++) { // for every atom in force field, look for it in framework
 		int count_atom_a = 0;
