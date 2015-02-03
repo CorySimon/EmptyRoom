@@ -62,7 +62,7 @@ void readsimulationinputfile(GridParameters & parameters) {
     parameters.verbose = false;
     parameters.grid_resolution = -1.0;
     parameters.gridoutputformat = "txt";
-    parameters.r_cutoff = 12.5;
+    parameters.r_cutoff_squared = 12.5 * 12.5;
     parameters.feynmanhibbs = 0;
     parameters.energy_threshold = 0.0; // for void fraction calc
     parameters.T = -1;
@@ -76,8 +76,10 @@ void readsimulationinputfile(GridParameters & parameters) {
             simfile >>parameters.energy_threshold;
         if (word=="GridResolution")
             simfile >>parameters.grid_resolution;
-        if (word=="CutoffRadius")
-            simfile >>parameters.r_cutoff;
+        if (word=="CutoffRadius") {
+            simfile >> parameters.r_cutoff_squared;
+            parameters.r_cutoff_squared = parameters.r_cutoff_squared * parameters.r_cutoff_squared;
+        }
         if (word=="Forcefield")
             simfile >>parameters.forcefieldname;
         if (word=="GridOutputFormat")

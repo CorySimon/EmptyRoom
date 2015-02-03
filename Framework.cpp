@@ -20,6 +20,8 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 		exit(EXIT_FAILURE);
 	}
 
+	name = structurename; // assign name
+
 	string line;
 	// get cell dimensions on first line
 	getline(cssr,line);

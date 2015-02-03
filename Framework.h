@@ -15,6 +15,7 @@ class Framework {
 public:
 	Framework(string structurname, bool verbose=false); // constructor
 
+	string name; // name of structure
 	double a, b, c; // unit cell dimensions
 	double alpha, beta, gamma; // unit cell angles
 	int noatoms; // number of atoms
