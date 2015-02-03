@@ -34,13 +34,17 @@ int main(int argc, char *argv[]) {
     parameters.adsorbateMW = get_adsorbate_MW_of(parameters.adsorbate);
 
     readsimulationinputfile(parameters);
+    if (parameters.verbose) printf("Read simulation.input\n");
     readunitcellreplicationfile(parameters, parameters.frameworkname);
+    if (parameters.verbose) printf("Read .uc replication file\n");
 
     //
     // Construct forcefield and framework objects
     //
     Forcefield forcefield(parameters.forcefieldname);
+    if (parameters.verbose) printf("Constructed Forcefield object\n");
     Framework framework(parameters.frameworkname);
+    if (parameters.verbose) printf("Constructed Framework object\n");
 
     get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate, parameters); // get sig/eps of adsorbate
 

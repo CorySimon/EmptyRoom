@@ -14,7 +14,7 @@ using namespace std;
 
 class Forcefield {
 public:
-	Forcefield(string forcefield, bool verbose=true);
+	Forcefield(string forcefield, bool verbose=false);
 
     int nointeractions; // number of interactions defined
     string name;

@@ -91,9 +91,18 @@ void readsimulationinputfile(GridParameters & parameters) {
     }
 
     // check for missing
-    if (parameters.T < 0.0) printf("Missing Temperature in simulation.input");
-    if (parameters.grid_resolution < 0.0) printf("Missing GridResolution in simulation.input");
-    if (parameters.forcefieldname == "None") printf("Missing Forcefield in simulation.input");
+    if (parameters.T < 0.0) {
+        printf("Missing Temperature in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.grid_resolution < 0.0) {
+        printf("Missing GridResolution in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.forcefieldname == "None") {
+        printf("Missing Forcefield in simulation.input");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void readunitcellreplicationfile(GridParameters & parameters, string frameworkname) {
