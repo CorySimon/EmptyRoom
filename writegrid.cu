@@ -14,17 +14,9 @@ using namespace std;
 #include "computegridsheet.h"
 #include "load_fast_particle_f_array.h"
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
 
 #define SQRT_N_THREADS 16 // a block may have a max of 512 threads... so 16x16 is max.
+
 // functions to ensure communication with GPU works ?
 #define CUDA_CALL(x) do { cudaError_t error = x;  \
   if (error != cudaSuccess) {  \
@@ -207,8 +199,8 @@ int main(int argc, char *argv[]) {
         		d_framework_atoms,
         		parameters,
         		x_f_gridpoints[i]);
-        gpuErrchk( cudaPeekAtLastError() );
-        gpuErrchk( cudaDeviceSynchronize() );
+        CUDA_CALL( cudaPeekAtLastError() );
+        CUDA_CALL( cudaDeviceSynchronize() );
         cudaDeviceSynchronize();
 
         // get energies from device
