@@ -6,7 +6,6 @@
  */
 using namespace std;
 #include "Forcefield.h"
-#include "datatypes.h"
 #include<cstdlib>
 #include<cmath>
 #include<cstdlib>
@@ -16,14 +15,17 @@ using namespace std;
 #ifndef READSIMULATIONmassesfile_H_
 #define READSIMULATIONmassesfile_H_
 
-double get_adsorbate_MW_of(string adsorbate) {
-    double adsorbatemolecularweight = -1.0;
+// assign adsorbate MW to parameters attribute
+double get_adsorbate_MW(string adsorbate) {
+    // open masses.def file with atomic masses
     string massesfilename = "data/masses.def";
     ifstream massesfile(massesfilename.c_str());
     if (massesfile.fail()) {
         printf("Masses file data/masses.def not present!\n");
         exit(EXIT_FAILURE);
     }
+
+    double adsorbatemolecularweight = -1.0;
     string line;
     getline(massesfile, line); //waste line
     string label; double mass;
@@ -47,7 +49,65 @@ double get_adsorbate_MW_of(string adsorbate) {
 }
 
 void readsimulationinputfile(GridParameters & parameters) {
-	// Read simulation.input into parameters.
+	// Read simulation.input into parameters. bool gcmc is true if this is gcmc
+	string siminputfilename = "simulation.input";
+	ifstream simfile(siminputfilename.c_str());
+	if (simfile.fail())
+	{
+		printf("Simulation.input failed to open!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	// Initialize
+    parameters.forcefieldname = "None";
+    parameters.verbose = false;
+    parameters.grid_resolution = -1.0;
+    parameters.gridoutputformat = "txt";
+    parameters.r_cutoff_squared = 12.5 * 12.5;
+    parameters.feynmanhibbs = false;
+    parameters.energy_threshold = 0.0; // for void fraction calc
+    parameters.T = -1;
+    
+    // grab from simulation.input
+    string word;
+    while (simfile >> word) {
+        if (word=="Temperature")
+            simfile >> parameters.T;
+        if (word=="VoidFractionEnergyThreshold")
+            simfile >> parameters.energy_threshold;
+        if (word=="GridResolution")
+            simfile >> parameters.grid_resolution;
+        if (word=="CutoffRadius") {
+            simfile >> parameters.r_cutoff_squared;
+            parameters.r_cutoff_squared = parameters.r_cutoff_squared * parameters.r_cutoff_squared;
+        }
+        if (word=="Forcefield")
+            simfile >> parameters.forcefieldname;
+        if (word=="GridOutputFormat")
+            simfile >> parameters.gridoutputformat;
+        if (word=="FeynmanHibbs")
+            simfile >> parameters.feynmanhibbs;
+        if (word=="verbosemode")
+            simfile >> parameters.verbose;
+    }
+
+    // check for missing
+    if (parameters.feynmanhibbs & (parameters.T < 0.0)) {
+        printf("Missing Temperature in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.grid_resolution < 0.0) {
+        printf("Missing GridResolution in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.forcefieldname == "None") {
+        printf("Missing Forcefield in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void readsimulationinputfile(GCMCParameters & parameters) {
+	// Read simulation.input into parameters. bool gcmc is true if this is gcmc
 	string siminputfilename = "simulation.input";
 	ifstream simfile(siminputfilename.c_str());
 	if (simfile.fail())
@@ -60,36 +120,45 @@ void readsimulationinputfile(GridParameters & parameters) {
     parameters.forcefieldname = "None";
     parameters.pocketblocking = false;
     parameters.verbose = false;
-    parameters.grid_resolution = -1.0;
-    parameters.gridoutputformat = "txt";
     parameters.r_cutoff_squared = 12.5 * 12.5;
     parameters.feynmanhibbs = 0;
-    parameters.energy_threshold = 0.0; // for void fraction calc
     parameters.T = -1;
+    parameters.delta = 0.1;
+    parameters.numtrials = -1;
+    parameters.samplefrequency = -1;
+    parameters.numequilibriumtrials = -1;
 
     // grab from simulation.input
     string word;
     while (simfile >> word) {
         if (word=="Temperature")
-            simfile >>parameters.T;
-        if (word=="VoidFractionEnergyThreshold")
-            simfile >>parameters.energy_threshold;
-        if (word=="GridResolution")
-            simfile >>parameters.grid_resolution;
+            simfile >> parameters.T;
         if (word=="CutoffRadius") {
             simfile >> parameters.r_cutoff_squared;
             parameters.r_cutoff_squared = parameters.r_cutoff_squared * parameters.r_cutoff_squared;
         }
         if (word=="Forcefield")
-            simfile >>parameters.forcefieldname;
-        if (word=="GridOutputFormat")
-            simfile >>parameters.gridoutputformat;
+            simfile >> parameters.forcefieldname;
         if (word=="FeynmanHibbs")
-            simfile >>parameters.feynmanhibbs;
+            simfile >> parameters.feynmanhibbs;
         if (word=="verbosemode")
-            simfile >>parameters.verbose;
+            simfile >> parameters.verbose;
         if (word=="PocketBlocking")
-            simfile >>parameters.pocketblocking;
+            simfile >> parameters.pocketblocking;
+        if (word=="NumberOfTrials")
+            simfile >> parameters.numtrials;
+        if (word=="SampleFrequency")
+            simfile >> parameters.samplefrequency;
+        if (word=="CyclesForEquilibrium")
+            simfile >> parameters.numequilibriumtrials;
+        if (word=="TrialProbability(Move)")
+            simfile >> parameters.p_move;
+        if (word=="TrialProbability(Exchange)")
+            simfile >> parameters.p_exchange;
+        if (word=="TrialProbability(IdentityChange)")
+            simfile >> parameters.p_identity_change;
+        if (word=="move_delta")
+            simfile >> parameters.delta;
     }
 
     // check for missing
@@ -105,13 +174,19 @@ void readsimulationinputfile(GridParameters & parameters) {
         printf("Missing Forcefield in simulation.input");
         exit(EXIT_FAILURE);
     }
+    if ((parameters.numtrials == -1) | (parameters.samplefrequency== -1) | (parameters.numequilibriumtrials == -1)) {
+        printf("Missing samplefrequency, CyclesForEquilibrium, or NumberOfTrials in simulation.input\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
-void readunitcellreplicationfile(GridParameters & parameters, string frameworkname) {
+triple_int readunitcellreplicationfile(string frameworkname) {
 	// read unit cell replication factors from unit cell rep file
-	parameters.replication_factor_a = -1; // initialize
-	parameters.replication_factor_b = -1;
-	parameters.replication_factor_c = -1;
+    triple_int uc_dims;
+
+	uc_dims.arg1 = -1; // initialize
+    uc_dims.arg2 = -1;
+	uc_dims.arg3 = -1;
 	string uc_filename = "data/uc_replications/" + frameworkname + ".uc";
 	ifstream ucfile(uc_filename.c_str());
 	if (ucfile.fail())
@@ -120,23 +195,25 @@ void readunitcellreplicationfile(GridParameters & parameters, string frameworkna
 		exit(EXIT_FAILURE);
 	}
 
-	if ( !(ucfile >> parameters.replication_factor_a))
+	if ( !(ucfile >> uc_dims.arg1))
 	{
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
-	if ( !(ucfile >> parameters.replication_factor_b))
+	if ( !(ucfile >> uc_dims.arg2))
 	{
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
-	if ( !(ucfile >> parameters.replication_factor_c))
+	if ( !(ucfile >> uc_dims.arg3))
 	{
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
 
-	if (parameters.replication_factor_a == -1) printf("Error, problem reading unit cell replication file");
+	if (uc_dims.arg1 == -1) printf("Error, problem reading unit cell replication file");
+    
+    return uc_dims;
 }
 
 void get_guest_FF_params_from_Forcefield(Forcefield forcefield, string adsorbate, GridParameters & parameters) {

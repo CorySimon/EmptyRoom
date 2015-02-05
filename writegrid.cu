@@ -6,8 +6,8 @@
 #include<cuda.h>
 #include <cuda_runtime.h>
 using namespace std;
-#include "readsettings.h"
 #include "datatypes.h"
+#include "readsettings.h"
 #include "Framework.h"
 #include "Forcefield.h"
 #include "write_to_outputfile.h"
@@ -47,11 +47,14 @@ int main(int argc, char *argv[]) {
     GridParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
-    parameters.adsorbateMW = get_adsorbate_MW_of(parameters.adsorbate);
+    parameters.adsorbateMW = get_adsorbate_MW(parameters.adsorbate);
 
     readsimulationinputfile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
-    readunitcellreplicationfile(parameters, parameters.frameworkname);
+    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname);
+    parameters.replication_factor_a = uc_reps.arg1;
+    parameters.replication_factor_b = uc_reps.arg2;
+    parameters.replication_factor_c = uc_reps.arg3;
     if (parameters.verbose) printf("Read .uc replication file\n");
 
     //
@@ -115,25 +118,25 @@ int main(int argc, char *argv[]) {
 	strcat(gridfilename,"_"); strcat(gridfilename, parameters.adsorbate.c_str());
 	strcat(gridfilename,"_"); strcat(gridfilename, forcefield.name.c_str());
 	if (parameters.gridoutputformat == "txt") {  // format I  made up for Henry coefficient and GCMC calcs
-	  gridfile = fopen(strcat(gridfilename, ".txt"), "w");
-	  fprintf(gridfile, "%d %d %d  = (N_x,N_y,N_z) grid points (grid is in fractional coords). Endpoints included.\n", N_x, N_y, N_z);
+		gridfile = fopen(strcat(gridfilename, ".txt"), "w");
+		fprintf(gridfile, "%d %d %d  = (N_x,N_y,N_z) grid points (grid is in fractional coords). Endpoints included.\n", N_x, N_y, N_z);
 	}
 	else if (parameters.gridoutputformat == "cube") // for visualization with VisIt
 	{
-	  gridfile = fopen(strcat(gridfilename, ".cube"), "w");
-	  fprintf(gridfile, "\nThis is a grid file.\n");
-	  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+		gridfile = fopen(strcat(gridfilename, ".cube"), "w");
+		fprintf(gridfile, "\nThis is a grid file.\n");
+		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
 			  framework.noatoms, 0.0, 0.0, 0.0); // give number of atoms
-	  // give little vectors that form a volume element
-	  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+		// give little vectors that form a volume element
+		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
 			  N_x, framework.t_matrix[0][0] / (N_x - 1), 0.0, 0.0);
-	  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
 			  N_y, framework.t_matrix[0][1]/ (N_y - 1), framework.t_matrix[1][1] / (N_y - 1), 0.0);
-	  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
 			  N_z, framework.t_matrix[0][2] / (N_z - 1), framework.t_matrix[1][2] / (N_z - 1), framework.t_matrix[2][2] / (N_z - 1));
 
-	  // write atoms to grid file
-	  double x, y, z;
+		// write atoms to grid file
+		double x, y, z;
 	  for (int i = 0; i < framework.noatoms; i++) {
 		  double atomic_mass = 1.0;
 		  int atomic_number = 1;
@@ -249,6 +252,7 @@ int main(int argc, char *argv[]) {
 	cudaFree(d_z_f_gridpoints);
 	cudaFree(d_y_f_gridpoints);
 	free(framework_atoms);
+    free(x_f_gridpoints); free(y_f_gridpoints); free(z_f_gridpoints);
 	fclose(outputfile); fclose(gridfile);
 
 }
