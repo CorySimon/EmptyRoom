@@ -178,6 +178,10 @@ void readsimulationinputfile(GCMCParameters & parameters) {
         printf("Missing samplefrequency, CyclesForEquilibrium, or NumberOfTrials in simulation.input\n");
         exit(EXIT_FAILURE);
     }
+    if (parameters.numequilibriumtrials > parameters.numtrials) {
+        printf("Eq trials > total trials!\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 triple_int readunitcellreplicationfile(string frameworkname) {
@@ -216,14 +220,15 @@ triple_int readunitcellreplicationfile(string frameworkname) {
     return uc_dims;
 }
 
-void get_guest_FF_params_from_Forcefield(Forcefield forcefield, string adsorbate, GridParameters & parameters) {
+pair_double get_guest_FF_params_from_Forcefield(Forcefield forcefield, string adsorbate) {
 	// searches through Forcefield object to get LJ params for adsorbate
+    pair_double eps_sig; // [epsilon, sigma] vector
 	bool found_adsorbate = false;
 	for (int i =0; i < forcefield.nointeractions; i++) {
 		if (forcefield.identity[i] == adsorbate) {
 			found_adsorbate = true;
-			parameters.epsilon_guest = forcefield.epsilon[i];
-			parameters.sigma_guest = forcefield.sigma[i];
+			eps_sig.arg1 = forcefield.epsilon[i];
+			eps_sig.arg2 = forcefield.sigma[i];
 			break;
 		}
 	}
@@ -232,5 +237,6 @@ void get_guest_FF_params_from_Forcefield(Forcefield forcefield, string adsorbate
 		printf("Could not find adsorbate %s in forcefield file %s", adsorbate.c_str(), forcefield.name.c_str());
 		exit(EXIT_FAILURE);
 	}
+    return eps_sig;
 }
 #endif /* READSIMULATIONmassesfile_H_ */

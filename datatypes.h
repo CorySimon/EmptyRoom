@@ -12,7 +12,11 @@
 
 struct triple_int {
     int arg1, arg2, arg3;
-};
+}; // 3d vect
+
+struct pair_double {
+    double arg1, arg2;
+}; // 2d vect
 
 struct Particle_f {
 	// for fast LJ computations
@@ -22,6 +26,20 @@ struct Particle_f {
     double eps_with_adsorbate; // epsilon with adsorbate, defined by mixing rule
     double sig_with_adsorbate_squared; // sigma with adsorbate, defined by mixing rule
    // double reduced_mass; // for Feynman Hibbs
+};
+
+struct particle_g { 
+// for guests particles
+	// Cartesian coords
+	double x;
+	double y;
+	double z;
+	// fractional coords
+	double x_f;
+	double y_f;
+	double z_f;
+	// adsorbate identity
+	int type;
 };
 
 struct GridParameters {
@@ -73,6 +91,7 @@ struct GCMCParameters {
     // These are given as arguments to binary gcmc
     string frameworkname;
     string adsorbate[2]; // label in FF for GCMC
+    int numadsorbates; // number of adsorbates
     double fugacity[2];
 
     // these are read from grid file
@@ -96,6 +115,37 @@ struct GCMCParameters {
     // TODO why not use framework.t_matrix? It will not pass correctly to cuda kernal. not sure why
     double t_matrix[3][3];
 };
+
+struct GCMC_stats
+{
+	// count trials
+	int N_insertion_trials;
+	int N_deletion_trials;
+	int N_move_trials;
+	int N_ID_swap_trials;
+	// count accepted monte carlo trials 
+	int N_insertions;
+	int N_deletions;
+	int N_moves;
+	int N_ID_swaps;
+	// count samples
+	int N_samples;
+	// average energies
+	double guest_guest_energy_avg;
+	double framework_guest_energy_avg;
+	// average number of guests
+	double N_g_avg[2];
+	double N_g2_avg[2]; // squared
+};
+
+void initialize_GCMC_stats(GCMC_stats & stats) {
+	stats.N_move_trials = 0; stats.N_insertion_trials = 0; stats.N_deletion_trials = 0; stats.N_ID_swap_trials = 0;
+	stats.N_insertions = 0;	stats.N_deletions = 0; stats.N_moves = 0; stats.N_ID_swaps = 0;
+	stats.N_samples = 0;
+	stats.guest_guest_energy_avg = 0.0; stats.framework_guest_energy_avg= 0.0;
+	stats.N_g_avg[0] = 0.0;	stats.N_g_avg[1] = 0.0;
+	stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
+}
 
 //
 // timer

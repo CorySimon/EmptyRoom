@@ -67,7 +67,9 @@ int main(int argc, char *argv[]) {
     if (parameters.verbose) printf("Constructed Framework object\n");
 
     // grab sigma/epsilon of adsorbate
-    get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate, parameters);
+    pair_double eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate);
+    parameters.epsilon_guest = eps_sig.arg1;
+    parameters.sigma_guest = eps_sig.arg2;
     if (parameters.verbose) printf("Fetched adsorbate FF parameters\n");
 
     //
