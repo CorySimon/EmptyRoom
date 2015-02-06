@@ -743,7 +743,7 @@ int main(int argc, char *argv[])
 		fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
 		fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c]/volume/6.022e-7/framework.density);
 	}
-	fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
+	fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
 	fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
 	fclose(outputfile); 
 }

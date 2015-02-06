@@ -6,6 +6,8 @@
  */
 #ifndef CORYFLOODFILL_H
 #define CORYFLOODFILL_H
-int find_and_block_pockets(double * energy_grid, int N_x, int N_y, int N_z, double temperature, GCMCParameters parameters);
-void write_cube(string cube_name, Framework framework, GCMCParameters *p, double *energy_grid, int N_x, int N_y, int N_z);
+
+int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double temperature, GCMCParameters parameters);
+
+void write_cube(string cube_name, Framework framework, GCMCParameters *p, double *energy_grid, Grid_info grid_info);
 #endif
