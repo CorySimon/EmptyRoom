@@ -24,8 +24,7 @@ using namespace std;
 #include "Framework.h"
 #include "Forcefield.h"
 #include "write_settings_to_outputfile.h"
-#include "load_fast_particle_f_array.h"
-//#include "pocketblocking.h"
+#include "pocketblocking.h"
 #define min_r .0000000000000001  // don't want to divide by zero...
 #define MAX_GUESTS 2000 // max number of guests in an array
 
@@ -74,12 +73,12 @@ double E_gg(int N_g,
 		dx_f = dx_f - parameters.replication_factor_a * round(dx_f / parameters.replication_factor_a);
 		dy_f = dy_f - parameters.replication_factor_b * round(dy_f / parameters.replication_factor_b);
 		dz_f = dz_f - parameters.replication_factor_c * round(dz_f / parameters.replication_factor_c);
-		assert (dx_f < 0.5 * parameters.replication_factor_a);
-		assert (dy_f < 0.5 * parameters.replication_factor_b);
-		assert (dz_f < 0.5 * parameters.replication_factor_c);
-		assert (dx_f > -0.5 * parameters.replication_factor_a);
-		assert (dy_f > -0.5 * parameters.replication_factor_b);
-		assert (dz_f > -0.5 * parameters.replication_factor_c);
+//		assert (dx_f < 0.5 * parameters.replication_factor_a);
+//		assert (dy_f < 0.5 * parameters.replication_factor_b);
+//		assert (dz_f < 0.5 * parameters.replication_factor_c);
+//		assert (dx_f > -0.5 * parameters.replication_factor_a);
+//		assert (dy_f > -0.5 * parameters.replication_factor_b);
+//		assert (dz_f > -0.5 * parameters.replication_factor_c);
         double dx, dy, dz;
 		frac_to_cart(parameters.t_matrix,
             dx_f, dy_f, dz_f,
@@ -125,8 +124,8 @@ double E_gf(double x_f_, double y_f_, double z_f_,
 		    double * energy_grid)
 {
 		// reflect fractional coords in [0,1] for grid
-		assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
-		assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
+//		assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
+//		assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
 		//  FORMAT OF GRID: energy_grid[k+j*N_z+i*N_y*N_z]
 		
         // define indices of 8 grid points, lower ones are:
@@ -414,7 +413,7 @@ int main(int argc, char *argv[])
         // each cycle corresponds to a number of Markov chain moves defined by ninnercycles
 		int ninnercycles = (N_g[0] + N_g[1]) > 20 ? (N_g[0] + N_g[1]) : 20; // proportional to number of guests
 		for (int inner_cycle = 0; inner_cycle < ninnercycles; inner_cycle ++) {
-			assert(N_g_total == N_g[0] + N_g[1]);
+//			assert(N_g_total == N_g[0] + N_g[1]);
 			cycle_counter += 1;
 
 			double which_move = uniform01(generator); // particle swap or translation?
@@ -487,7 +486,7 @@ int main(int argc, char *argv[])
 
                     // select idx of guest to delete in adsorbate_index_list
 					int idx_delete_type = uniformint(generator); 
-					assert(idx_delete_type < N_g[which_type]);
+//					assert(idx_delete_type < N_g[which_type]);
 					int idx_delete = adsorbate_index_list[which_type][idx_delete_type]; // corresponding global ID in guests
 					if (idx_delete >= N_g_total) {
 						printf("Idx delete %d, N_g %d, Ng total %d,idx delete type %d\n",idx_delete,N_g[which_type],N_g_total,idx_delete_type);
@@ -495,7 +494,7 @@ int main(int argc, char *argv[])
 						for (int ad = 0 ; ad < N_g[0] ; ad++)
 						 cout << adsorbate_index_list[0][ad] << endl;
 					}
-					assert(idx_delete < N_g_total);
+//					assert(idx_delete < N_g_total);
 
 					// compute energy of this guest that we propose to delete
 					double energy_gf = 1e6;
@@ -550,9 +549,9 @@ int main(int argc, char *argv[])
 					decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
 					uniformint.param(new_range);
 					int idx_move_type = uniformint(generator);
-					assert(idx_move_type < N_g[which_type]);
+//					assert(idx_move_type < N_g[which_type]);
 					int idx_move = adsorbate_index_list[which_type][idx_move_type]; // global ID in guests
-					assert(idx_move < N_g_total);
+//					assert(idx_move < N_g_total);
 					
                     // compute energy in current (old) position
 					double energy_gf_old = 0.0;
@@ -592,9 +591,9 @@ int main(int argc, char *argv[])
 						guests[idx_move].y = y;
 						guests[idx_move].z = z;
 					}
-					assert(guests[idx_move].x_f > 0.0); assert(guests[idx_move].x_f < parameters.replication_factor_a);
-					assert(guests[idx_move].y_f > 0.0); assert(guests[idx_move].y_f < parameters.replication_factor_b);
-					assert(guests[idx_move].z_f > 0.0); assert(guests[idx_move].z_f < parameters.replication_factor_c);
+//					assert(guests[idx_move].x_f > 0.0); assert(guests[idx_move].x_f < parameters.replication_factor_a);
+//					assert(guests[idx_move].y_f > 0.0); assert(guests[idx_move].y_f < parameters.replication_factor_b);
+//					assert(guests[idx_move].z_f > 0.0); assert(guests[idx_move].z_f < parameters.replication_factor_c);
 
 					// get energy at new position
 					double energy_gf_new = 1e6;
@@ -636,7 +635,7 @@ int main(int argc, char *argv[])
 					uniformint.param(new_range);
 					int idx_type = uniformint(generator); // which of this component?
 					int idx = adsorbate_index_list[which_type][idx_type]; // global index of this component
-					assert(guests[idx].type == which_type);
+//					assert(guests[idx].type == which_type);
 
 					// get energy difference with current ID
 					double energy_gg_old = E_gg(N_g_total, idx , guests, parameters);

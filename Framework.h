@@ -4,12 +4,12 @@
  *  Created on: Feb 2, 2015
  *      Author: corymsimon
  */
+#ifndef FRAMEWORK_H_
+#define FRAMEWORK_H_
 using namespace std;
 #include<string>
 #include<vector>
 
-#ifndef FRAMEWORK_H_
-#define FRAMEWORK_H_
 
 class Framework {
 public:

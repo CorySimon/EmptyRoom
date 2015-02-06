@@ -5,8 +5,8 @@
  *      Author: corymsimon
  */
 
-#ifndef DATATYPES_H_
-#define DATATYPES_H_
+#ifndef DATATYPESs_H_
+#define DATATYPESs_H_
 #include <sys/time.h>
 #include<string>
 

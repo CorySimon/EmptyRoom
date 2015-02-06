@@ -4,8 +4,8 @@
  *  Created on: Feb 4, 2015
  *      Author: corymsimon
  */
-#ifndef CORYFLOODFILL_H
-#define CORYFLOODFILL_H
+#ifndef POCKETBLOCKING_H
+#define POCKETBLOCKING_H
 
 int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double temperature, GCMCParameters parameters);
 

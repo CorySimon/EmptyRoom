@@ -2,14 +2,15 @@ using namespace std;
 #include<assert.h>
 #include<string>
 #include<cstdlib> // for "exit" and "malloc"
-#include<cstring>
-#include<vector>
-#include "datatypes.h" // has guest and framework atom data structure for GPU
+#include "datatypes.h"
 #include "Framework.h"
+#include<cstring>
+#include <stdio.h>
+#include<vector>
 
 inline int energy_ind(int i, int j, int k, Grid_info grid_info) {
 	// returns index in energy_grid corresponding to gridpoint index i,j,k
-	return k + j * N_z + i * N_y * N_z;
+	return k + j * grid_info.N_z + i * grid_info.N_y * grid_info.N_z;
 }
 
 struct Grid_point_info {
@@ -126,7 +127,7 @@ void note_new_connection(int from_segment, int to_segment, int direction, vector
 int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double temperature, GCMCParameters parameters)
 {
 	if (parameters.verbose) printf("Starting blocking pockets routine.\n");
-	int grid_size = N_x * N_y * N_z; // number of grid points
+	int grid_size = grid_info.numtotalpts; // number of grid points
 	double energy_threshold = 15.0 * temperature; // energy < energy_threshold ==> inaccessible
 	if (parameters.verbose) printf("Energy threshold = %f\n",energy_threshold);
 
@@ -149,11 +150,11 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 	//
 	// FLOOD FILL loop over all grid points to assign segments. ignore periodic bcs for now
 	//
-	for (int i = 0; i < N_x; i++) {
-		for (int j = 0; j < N_y; j++) {
-			for (int k = 0; k < N_z; k++) {
+	for (int i = 0; i < grid_info.N_x; i++) {
+		for (int j = 0; j < grid_info.N_y; j++) {
+			for (int k = 0; k < grid_info.N_z; k++) {
 				// declare grid point
-				Grid_id grid_pt; grid_pt.i = i; grid_pt.j = j; grid_pt.k = k; grid_pt.global_id = energy_ind(i,j,k,N_x,N_y,N_z);
+				Grid_id grid_pt; grid_pt.i = i; grid_pt.j = j; grid_pt.k = k; grid_pt.global_id = energy_ind(i,j,k,grid_info);
 				if (grid_pt_info[grid_pt.global_id].status_found == false) {
 					N_segments += 1; // we have arrived at a new segment!
 					if (parameters.debugmode) printf("\tFound a new segment\nN_segments = %d\n",N_segments);
@@ -174,19 +175,19 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 							adjacent_pt.i = another_grid_pt.i - 1;
 							adjacent_pt.j = another_grid_pt.j;
 							adjacent_pt.k = another_grid_pt.k;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false) {
 								// push it to the stack
 								stack_ids.push_back(adjacent_pt);
 							}
 						}
-						if (another_grid_pt.i != N_x - 1) {
+						if (another_grid_pt.i != grid_info.N_x - 1) {
 							// declare pt
 							Grid_id adjacent_pt;
 							adjacent_pt.i = another_grid_pt.i + 1;
 							adjacent_pt.j = another_grid_pt.j;
 							adjacent_pt.k = another_grid_pt.k;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false) {
 								// push it to the stack
 								stack_ids.push_back(adjacent_pt);
@@ -199,20 +200,20 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 							adjacent_pt.i = another_grid_pt.i;
 							adjacent_pt.j = another_grid_pt.j - 1;
 							adjacent_pt.k = another_grid_pt.k;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false)
 							{
 								// push it to the stack
 								stack_ids.push_back(adjacent_pt);
 							}
 						}
-						if (another_grid_pt.j != N_y - 1) {
+						if (another_grid_pt.j != grid_info.N_y - 1) {
 							// declare pt
 							Grid_id adjacent_pt;
 							adjacent_pt.i = another_grid_pt.i;
 							adjacent_pt.j = another_grid_pt.j + 1;
 							adjacent_pt.k = another_grid_pt.k;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false)
 							{
 								// push it to the stack
@@ -226,20 +227,20 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 							adjacent_pt.i = another_grid_pt.i;
 							adjacent_pt.j = another_grid_pt.j;
 							adjacent_pt.k = another_grid_pt.k - 1;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false)
 							{
 								// push it to the stack
 								stack_ids.push_back(adjacent_pt);
 							}
 						}
-						if (another_grid_pt.k != N_z - 1) {
+						if (another_grid_pt.k != grid_info.N_z - 1) {
 							// declare pt
 							Grid_id adjacent_pt;
 							adjacent_pt.i = another_grid_pt.i;
 							adjacent_pt.j = another_grid_pt.j;
 							adjacent_pt.k = another_grid_pt.k + 1;
-							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,N_x,N_y,N_z);
+							adjacent_pt.global_id = energy_ind(adjacent_pt.i,adjacent_pt.j,adjacent_pt.k,grid_info);
 							if (grid_pt_info[adjacent_pt.global_id].status_found == false)
 							{
 								// push it to the stack
@@ -275,13 +276,13 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 	// loop over all faces of unit cell
 	// store only positive connections (I think...)
 	int i = 0; // bottom and top faces
-	for (int j = 0; j < N_y; j++) {
-		for (int k = 0; k < N_z; k++) {
+	for (int j = 0; j < grid_info.N_y; j++) {
+		for (int k = 0; k < grid_info.N_z; k++) {
 			// get this point on the face and its segment
-			int this_global_id = energy_ind(i,j,k,N_x,N_y,N_z);
+			int this_global_id = energy_ind(i,j,k,grid_info);
 			int this_segment = grid_pt_info[this_global_id].segment_id;
 			// get neighbor and its segment
-			int neighbor_global_id = energy_ind(N_x-1,j,k,N_x,N_y,N_z);
+			int neighbor_global_id = energy_ind(grid_info.N_x-1,j,k,grid_info);
 			int neighbor_segment = grid_pt_info[neighbor_global_id].segment_id;
 			if ((this_segment != -1) && (neighbor_segment != -1)) {
 //					note_new_connection(this_segment, neighbor_segment, x_dir_neg, connections);
@@ -290,13 +291,13 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 		}
 	}
 	int j = 0; // front and back faces
-	for (int i = 0; i < N_x; i++) {
-		for (int k = 0; k < N_z; k++) {
+	for (int i = 0; i < grid_info.N_x; i++) {
+		for (int k = 0; k < grid_info.N_z; k++) {
 			// get this point on the face and its segment
-			int this_global_id = energy_ind(i,j,k,N_x,N_y,N_z);
+			int this_global_id = energy_ind(i,j,k,grid_info);
 			int this_segment = grid_pt_info[this_global_id].segment_id;
 			// get neighbor and its segment
-			int neighbor_global_id = energy_ind(i,N_y-1,k,N_x,N_y,N_z);
+			int neighbor_global_id = energy_ind(i,grid_info.N_y-1,k,grid_info);
 			int neighbor_segment = grid_pt_info[neighbor_global_id].segment_id;
 			if ((this_segment != -1) && (neighbor_segment != -1)) {
 //					note_new_connection(this_segment, neighbor_segment, y_dir_neg, connections);
@@ -305,13 +306,13 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 		}
 	}
 	int k = 0; // front and back faces
-	for (int i = 0; i < N_x; i++) {
-		for (int j = 0; j < N_y; j++) {
+	for (int i = 0; i < grid_info.N_x; i++) {
+		for (int j = 0; j < grid_info.N_y; j++) {
 			// get this point on the face and its segment
-			int this_global_id = energy_ind(i,j,k,N_x,N_y,N_z);
+			int this_global_id = energy_ind(i,j,k,grid_info);
 			int this_segment = grid_pt_info[this_global_id].segment_id;
 			// get neighbor and its segment
-			int neighbor_global_id = energy_ind(i,j,N_z-1,N_x,N_y,N_z);
+			int neighbor_global_id = energy_ind(i,j,grid_info.N_z-1,grid_info);
 			int neighbor_segment = grid_pt_info[neighbor_global_id].segment_id;
 			if ((this_segment != -1) && (neighbor_segment != -1)) {
 //					note_new_connection(this_segment, neighbor_segment, z_dir_neg, connections);
@@ -391,7 +392,7 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 }
 
 
-void write_cube(string cube_name, Framework framework, Parameters *p, double *energy_grid, Grid_info grid_info) {
+void write_cube(string cube_name, Framework framework, GCMCParameters parameters, double *energy_grid, Grid_info grid_info) {
     // write energy grid pointer malloc'ed array to cube file
 	FILE * gridfile;
 	char gridfilename[512];
@@ -399,9 +400,9 @@ void write_cube(string cube_name, Framework framework, Parameters *p, double *en
 	gridfile=fopen(gridfilename, "w");
 	fprintf(gridfile, "\nThis is a grid file.\n");
 	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", 0, 0.0, 0.0, 0.0); //enforce zero atoms
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_x, p->T_matrix[0][0]/(grid_info.N_x-1),0.0,0.0);
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_y, p->T_matrix[0][1]/(grid_info.N_y-1),p->T_matrix[1][1]/(grid_info.N_y-1),0.0);
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_z, p->T_matrix[0][2]/(grid_info.N_z-1),p->T_matrix[1][2]/(grid_info.N_z-1),p->T_matrix[2][2]/(grid_info.N_z-1));
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_x, parameters.t_matrix[0][0]/(grid_info.N_x-1),0.0,0.0);
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_y, parameters.t_matrix[0][1]/(grid_info.N_y-1),parameters.t_matrix[1][1]/(grid_info.N_y-1),0.0);
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_z, parameters.t_matrix[0][2]/(grid_info.N_z-1),parameters.t_matrix[1][2]/(grid_info.N_z-1),parameters.t_matrix[2][2]/(grid_info.N_z-1));
 	for(int i = 0; i < grid_info.N_x; i++) {
 		for(int j = 0; j < grid_info.N_y; j++) { // loop over y's
 			int count = 0;
