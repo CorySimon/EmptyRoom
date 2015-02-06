@@ -189,6 +189,10 @@ void write_settings_to_outputfile(FILE * outputfile,
     double dc = framework.c / (grid_info.N_z - 1);
     fprintf(outputfile, "    Actual grid spacing: da = %f A, db = %f A, dc = %f A\n", da, db, dc);
     fprintf(outputfile, "    Pocking blocking: %d\n", parameters.pocketblocking);
+    if (parameters.pocketblocking) {
+        for (int i = 0; i < parameters.numadsorbates; i ++)
+            fprintf(outputfile, "    %s grid, number of blocked pockets = %d\n", parameters.adsorbate[i].c_str(), grid_info.numpockets[i]);
+    }
 }
 
 

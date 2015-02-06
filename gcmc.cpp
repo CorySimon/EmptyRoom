@@ -24,9 +24,33 @@ using namespace std;
 #include "Framework.h"
 #include "Forcefield.h"
 #include "write_settings_to_outputfile.h"
+#include <sys/time.h>
 #include "pocketblocking.h"
 #define min_r .0000000000000001  // don't want to divide by zero...
 #define MAX_GUESTS 2000 // max number of guests in an array
+
+void initialize_GCMC_stats(GCMC_stats & stats)
+{
+	stats.N_move_trials = 0; stats.N_insertion_trials = 0; stats.N_deletion_trials = 0; stats.N_ID_swap_trials = 0;
+	stats.N_insertions = 0;	stats.N_deletions = 0; stats.N_moves = 0; stats.N_ID_swaps = 0;
+	stats.N_samples = 0;
+	stats.guest_guest_energy_avg = 0.0; stats.framework_guest_energy_avg= 0.0;
+	stats.N_g_avg[0] = 0.0;	stats.N_g_avg[1] = 0.0;
+	stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
+}
+
+double read_timer() {
+    static bool initialized = false;
+    static struct timeval start;
+    struct timeval end;
+    if( !initialized )
+    {
+        gettimeofday( &start, NULL );
+        initialized = true;
+    }
+    gettimeofday( &end, NULL );
+    return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
+}
 
 void frac_to_cart(double T_matrix[3][3],
     double x_f, double y_f, double z_f,
@@ -210,6 +234,10 @@ int main(int argc, char *argv[])
 
     readsimulationinputfile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
+    if ((parameters.numadsorbates == 1) & (parameters.p_identity_change > 0.0)) {
+        printf("Only 1 adsorbate and ID swap probability > 1... Make it zero.\n");
+        exit(EXIT_FAILURE);
+    }
     
     triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname);
     parameters.replication_factor_a = uc_reps.arg1;
@@ -261,7 +289,7 @@ int main(int argc, char *argv[])
 	//
     Grid_info grid_info; // for storing grid info
 	double * energy_grid0; double * energy_grid1;
-	bool pocket_block_verbose_mode = false;
+	bool pocket_block_verbose_mode = true;
 	for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
         int N_x_temp, N_y_temp, N_z_temp;
 		if (parameters.verbose) printf("Importing energy grid %d\n", n_c);
@@ -320,44 +348,35 @@ int main(int argc, char *argv[])
 		grid_info.dy_f = 1.0/(grid_info.N_y - 1);
 		grid_info.dz_f = 1.0/(grid_info.N_z - 1);
 		if (parameters.verbose) printf("energy grid %d imported successfully.\n",n_c);
+		
+        //
+		// Flood fill/ pocket blocking, if enabled
+		//
+		if (parameters.pocketblocking) {
+			double time_before = read_timer();
+			if (pocket_block_verbose_mode) {
+				printf("Pocket blocking beginning. Write a cube for before\n");
+				if (n_c == 0)
+					write_cube("before_blocking_0", framework, parameters, energy_grid0, grid_info); //just so you can see the grid before ...
+				if (n_c == 1)
+					write_cube("before_blocking_1", framework, parameters, energy_grid1, grid_info); //just so you can see the grid before ...
+			}
+			if (n_c == 0)
+				grid_info.numpockets[0] = find_and_block_pockets(energy_grid0, grid_info, parameters.T, parameters);
+			if (n_c == 1)
+				grid_info.numpockets[1] = find_and_block_pockets(energy_grid1, grid_info, parameters.T, parameters);
+			// energy_grid is passed as a poitner, so it is modified now if accessible pockets were there.
+			if (pocket_block_verbose_mode) {
+				printf("Pocket blocking finished. Write a cube for after\n");
+				double time_after = read_timer();
+				printf("Time spent to find and block pockets: %f s\n", time_after - time_before);
+				if (n_c == 0)
+					write_cube("after_blocking_0", framework, parameters, energy_grid0, grid_info); // ... and after pocket blocking
+				if (n_c == 1)
+					write_cube("after_blocking_1", framework, parameters, energy_grid1, grid_info); // ... and after pocket blocking
+			}
+		}
     }
-//		//
-//		// Flood fill/ pocket blocking
-//		//
-//		if (parameters.pocket_blocking)
-//		{
-//			outputfile << "Pocket blocking enabled with temperature " << parameters.T << " K." << endl;
-//			double time_before = read_timer();
-//			if (pocket_block_verbose_mode == true)
-//			{
-//				cout << "Pocket blocking beginning. Write a cube for before" << endl;
-//				outputfile << "VERBOSE MODE FOR POCKETBLOCKING!" <<endl;
-//				if (n_c == 0)
-//					write_cube("before_blocking_0", framework, &parameters, energy_grid0, grid_info.N_x,grid_info.N_y,grid_info.N_z); //just so you can see the grid before ...
-//				if (n_c == 1)
-//					write_cube("before_blocking_1", framework, &parameters, energy_grid1, grid_info.N_x,grid_info.N_y,grid_info.N_z); //just so you can see the grid before ...
-//				cout << "Cube written." << endl;
-//			}
-//			int num_pockets = -1;
-//			if (n_c == 0)
-//				num_pockets = find_and_block_pockets(energy_grid0, N_x[0], N_y[0], N_z[0], parameters.T, parameters);
-//			if (n_c == 1)
-//				num_pockets = find_and_block_pockets(energy_grid1, N_x[1], N_y[1], N_z[1], parameters.T, parameters);
-//			outputfile << parameters.adsorbate[n_c] << " : found " << num_pockets << " inaccessible pockets" << endl;
-//			// energy_grid is passed as a poitner, so it is modified now if accessible pockets were there.
-//			if (pocket_block_verbose_mode == true)
-//			{
-//				cout << "Pocket blocking finished. Write a cube for after" << endl;
-//				double time_after = read_timer();
-//				outputfile << "Time spent to find and block pockets: " << time_after-time_before << endl;
-//				if (n_c == 0)
-//					write_cube("after_blocking_0", framework, &parameters, energy_grid0, grid_info.N_x,grid_info.N_y,grid_info.N_z); // ... and after pocket blocking
-//				if (n_c == 1)
-//					write_cube("after_blocking_1", framework, &parameters, energy_grid1, grid_info.N_x,grid_info.N_y,grid_info.N_z); // ... and after pocket blocking
-//				cout << "Cube written." << endl;
-//			}
-//		}
-//	}
 	
     //
     // Initialize stats and guests array (includes both components via "type" attribute)

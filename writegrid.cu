@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include<cuda.h>
+#include <sys/time.h>
 #include <cuda_runtime.h>
 using namespace std;
 #include "datatypes.h"
@@ -26,6 +27,19 @@ using namespace std;
 #define CURAND_CALL(x) do { if((x)!=CURAND_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
             return EXIT_FAILURE;}} while(0)
+
+double read_timer() {
+    static bool initialized = false;
+    static struct timeval start;
+    struct timeval end;
+    if( !initialized )
+    {
+        gettimeofday( &start, NULL );
+        initialized = true;
+    }
+    gettimeofday( &end, NULL );
+    return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
+}
 
 void host_frac_to_cart(double t_matrix[][3],
 		double x_f, double y_f,double z_f,
@@ -192,7 +206,6 @@ int main(int argc, char *argv[]) {
 	for (int i=0; i<3; i++) {
 		for (int j=0; j<3; j++){
 			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
-			parameters.inv_t_matrix[i][j] = framework.inv_t_matrix[i][j];
 		}
 	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
 

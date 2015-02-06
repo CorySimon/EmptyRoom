@@ -180,6 +180,10 @@ void readsimulationinputfile(GCMCParameters & parameters) {
         printf("Eq trials > total trials!\n");
         exit(EXIT_FAILURE);
     }
+    if ((parameters.p_identity_change + parameters.p_move + parameters.p_exchange) != 1.0) {
+        printf("MC trial probabilities do not add to 1.0...\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 triple_int readunitcellreplicationfile(string frameworkname) {

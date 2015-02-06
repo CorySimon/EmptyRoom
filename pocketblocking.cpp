@@ -392,17 +392,17 @@ int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double tem
 }
 
 
-void write_cube(string cube_name, Framework framework, GCMCParameters parameters, double *energy_grid, Grid_info grid_info) {
+void write_cube(string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, Grid_info grid_info) {
     // write energy grid pointer malloc'ed array to cube file
 	FILE * gridfile;
 	char gridfilename[512];
-    sprintf(gridfilename, "grids/%s.cube", cube_name.c_str());
-	gridfile=fopen(gridfilename, "w");
+    sprintf(gridfilename, "data/grids/%s.cube", cube_name.c_str());
+	gridfile = fopen(gridfilename, "w");
 	fprintf(gridfile, "\nThis is a grid file.\n");
 	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", 0, 0.0, 0.0, 0.0); //enforce zero atoms
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_x, parameters.t_matrix[0][0]/(grid_info.N_x-1),0.0,0.0);
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_y, parameters.t_matrix[0][1]/(grid_info.N_y-1),parameters.t_matrix[1][1]/(grid_info.N_y-1),0.0);
-	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_z, parameters.t_matrix[0][2]/(grid_info.N_z-1),parameters.t_matrix[1][2]/(grid_info.N_z-1),parameters.t_matrix[2][2]/(grid_info.N_z-1));
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_x, parameters.t_matrix[0][0]/(grid_info.N_x - 1),0.0,0.0);
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_y, parameters.t_matrix[0][1]/(grid_info.N_y - 1), parameters.t_matrix[1][1] / (grid_info.N_y - 1), 0.0);
+	fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n", grid_info.N_z, parameters.t_matrix[0][2]/(grid_info.N_z - 1), parameters.t_matrix[1][2] / (grid_info.N_z - 1), parameters.t_matrix[2][2] / (grid_info.N_z - 1));
 	for(int i = 0; i < grid_info.N_x; i++) {
 		for(int j = 0; j < grid_info.N_y; j++) { // loop over y's
 			int count = 0;
@@ -417,4 +417,5 @@ void write_cube(string cube_name, Framework framework, GCMCParameters parameters
 			fprintf(gridfile, "\n"); //new line after z over
 		}
     }
+    fclose(gridfile);
 }

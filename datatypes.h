@@ -7,7 +7,6 @@
 
 #ifndef DATATYPESs_H_
 #define DATATYPESs_H_
-#include <sys/time.h>
 #include<string>
 
 struct triple_int {
@@ -119,6 +118,7 @@ struct Grid_info {
     int N_x, N_y, N_z;
     double dx_f, dy_f, dz_f;
     int numtotalpts;
+    int numpockets[2]; // if pocket blocking...
 };
 
 struct GCMC_stats
@@ -142,30 +142,5 @@ struct GCMC_stats
 	double N_g_avg[2];
 	double N_g2_avg[2]; // squared
 };
-
-void initialize_GCMC_stats(GCMC_stats & stats) {
-	stats.N_move_trials = 0; stats.N_insertion_trials = 0; stats.N_deletion_trials = 0; stats.N_ID_swap_trials = 0;
-	stats.N_insertions = 0;	stats.N_deletions = 0; stats.N_moves = 0; stats.N_ID_swaps = 0;
-	stats.N_samples = 0;
-	stats.guest_guest_energy_avg = 0.0; stats.framework_guest_energy_avg= 0.0;
-	stats.N_g_avg[0] = 0.0;	stats.N_g_avg[1] = 0.0;
-	stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
-}
-
-//
-// timer
-//
-double read_timer() {
-    static bool initialized = false;
-    static struct timeval start;
-    struct timeval end;
-    if( !initialized )
-    {
-        gettimeofday( &start, NULL );
-        initialized = true;
-    }
-    gettimeofday( &end, NULL );
-    return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
-}
 
 #endif /* DATATYPES_H_ */

@@ -3,10 +3,10 @@ CFLAGS = -O3 -arch sm_20 g
 NVCCFLAGS = -g -O3 -arch sm_20
 LIBS = -lm
 
-all: gcmc2
+all: gcmc
 
-gcmc2: gcmc.o Framework.o Forcefield.o pocketblocking.o
-	$(CC) -o $@ gcmc.o Framework.o Forcefield.o pocketblocking.o
+gcmc: Framework.o Forcefield.o pocketblocking.o gcmc.o 
+	$(CC) -o $@ Framework.o Forcefield.o pocketblocking.o gcmc.o 
 
 pocketblocking.o: pocketblocking.cpp
 	$(CC) -c pocketblocking.cpp
