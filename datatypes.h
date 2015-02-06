@@ -81,6 +81,7 @@ struct GCMCParameters {
     string forcefieldname;
     bool pocketblocking; // 1: enabled
     bool verbose; // 0 or 1 for verbose printing
+    bool debugmode; // print details of each move for debugging
     double r_cutoff_squared; // cutoff for LJ potential (A), squared
     int feynmanhibbs;
     double T; // temperature (K)
@@ -93,10 +94,6 @@ struct GCMCParameters {
     string adsorbate[2]; // label in FF for GCMC
     int numadsorbates; // number of adsorbates
     double fugacity[2];
-
-    // these are read from grid file
-    double grid_resolution;
-    int N_z, N_y, N_x; // energy grid size
 
     // This must be read from force field object
     double epsilon_matrix[2][2]; double sigma_squared_matrix[2][2]; // pure sigma, epsilon for adsorbate
@@ -114,6 +111,14 @@ struct GCMCParameters {
 
     // TODO why not use framework.t_matrix? It will not pass correctly to cuda kernal. not sure why
     double t_matrix[3][3];
+    double inv_t_matrix[3][3];
+};
+
+struct Grid_info {
+    // for GCMC ease
+    int N_x, N_y, N_z;
+    double dx_f, dy_f, dz_f;
+    int numtotalpts;
 };
 
 struct GCMC_stats

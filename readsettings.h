@@ -143,6 +143,8 @@ void readsimulationinputfile(GCMCParameters & parameters) {
             simfile >> parameters.feynmanhibbs;
         if (word=="verbosemode")
             simfile >> parameters.verbose;
+        if (word=="DebugMode")
+            simfile >> parameters.debugmode;
         if (word=="PocketBlocking")
             simfile >> parameters.pocketblocking;
         if (word=="NumberOfTrials")
@@ -164,10 +166,6 @@ void readsimulationinputfile(GCMCParameters & parameters) {
     // check for missing
     if (parameters.T < 0.0) {
         printf("Missing Temperature in simulation.input");
-        exit(EXIT_FAILURE);
-    }
-    if (parameters.grid_resolution < 0.0) {
-        printf("Missing GridResolution in simulation.input");
         exit(EXIT_FAILURE);
     }
     if (parameters.forcefieldname == "None") {

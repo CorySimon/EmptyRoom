@@ -1,13 +1,22 @@
 Forcefield UFF noble_gas_zeolitesOO.def PPNforcefield.def TexasMOFforcefield.def CaleroCH4zeolites.def testforcefield.def # store as .def
 
-GridResolution 1.0 A
+GridResolution 0.5 A
 CutoffRadius 12.5 A
 VoidFractionEnergyThreshold 0
 GridOutputFormat txt # write txt for henry calcs, or cube for vis
 
+FeynmanHibbs 0 # put "1" or "0"
 Temperature 298 K
 
-FeynmanHibbs 0 # put "1" or "0"
-
 verbosemode 1
+DebugMode 1
 PocketBlocking 1
+
+# for GCMC
+NumberOfTrials 1 
+SampleFrequency 10
+CyclesForEquilibrium 0
+TrialProbability(Move) 0.3
+TrialProbability(Exchange) 0.7
+TrialProbability(IdentityChange) 0.0
+move_delta 0.3

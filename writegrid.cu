@@ -10,7 +10,7 @@ using namespace std;
 #include "readsettings.h"
 #include "Framework.h"
 #include "Forcefield.h"
-#include "write_to_outputfile.h"
+#include "write_settings_to_outputfile.h"
 #include "computegridsheet.h"
 #include "load_fast_particle_f_array.h"
 
@@ -104,9 +104,8 @@ int main(int argc, char *argv[]) {
     //  Write settings to outputfile
     //
     FILE * outputfile;
-    char outputfilename[512] = "output_files/";
-    strcat(outputfilename, parameters.frameworkname.c_str());
-    strcat(outputfilename, "_"); strcat(outputfilename, parameters.adsorbate.c_str()); strcat(outputfilename, "_grid.out");
+    char outputfilename[512];
+    sprintf(outputfilename, "output_files/%s_%s_grid.out", parameters.frameworkname.c_str(), parameters.adsorbate.c_str());
     outputfile = fopen(outputfilename, "w");
     write_settings_to_outputfile(outputfile, parameters, framework, forcefield, framework_atoms);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
@@ -193,6 +192,7 @@ int main(int argc, char *argv[]) {
 	for (int i=0; i<3; i++) {
 		for (int j=0; j<3; j++){
 			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
+			parameters.inv_t_matrix[i][j] = framework.inv_t_matrix[i][j];
 		}
 	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
 
