@@ -49,7 +49,7 @@ double get_adsorbate_MW(string adsorbate) {
 }
 
 void readsimulationinputfile(GridParameters & parameters) {
-	// Read simulation.input into parameters. bool gcmc is true if this is gcmc
+	// Read simulation.input into parameters.
 	string siminputfilename = "simulation.input";
 	ifstream simfile(siminputfilename.c_str());
 	if (simfile.fail())
@@ -98,6 +98,55 @@ void readsimulationinputfile(GridParameters & parameters) {
     }
     if (parameters.grid_resolution < 0.0) {
         printf("Missing GridResolution in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.forcefieldname == "None") {
+        printf("Missing Forcefield in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void readsimulationinputfile(HenryParameters & parameters) {
+	// Read simulation.input into parameters. 
+	string siminputfilename = "simulation.input";
+	ifstream simfile(siminputfilename.c_str());
+	if (simfile.fail())
+	{
+		printf("Simulation.input failed to open!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	// Initialize
+    parameters.forcefieldname = "None";
+    parameters.verbose = false;
+    parameters.r_cutoff_squared = 12.5 * 12.5;
+    parameters.T = -1;
+    parameters.numinsertions = -1;
+    
+    // grab from simulation.input
+    string word;
+    while (simfile >> word) {
+        if (word=="Temperature")
+            simfile >> parameters.T;
+        if (word=="CutoffRadius") {
+            simfile >> parameters.r_cutoff_squared;
+            parameters.r_cutoff_squared = parameters.r_cutoff_squared * parameters.r_cutoff_squared;
+        }
+        if (word=="Forcefield")
+            simfile >> parameters.forcefieldname;
+        if (word=="NumberOfInsertions")
+            simfile >> parameters.numinsertions;
+        if (word=="verbosemode")
+            simfile >> parameters.verbose;
+    }
+
+    // check for missing
+    if (parameters.T < 0.0) {
+        printf("Missing Temperature in simulation.input");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.numinsertions < 0.0) {
+        printf("Missing NumberOfInsertions in simulation.input");
         exit(EXIT_FAILURE);
     }
     if (parameters.forcefieldname == "None") {

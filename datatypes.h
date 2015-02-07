@@ -41,6 +41,39 @@ struct particle_g {
 	int type;
 };
 
+struct HenryParameters {
+	// These are extracted from the simulation.input file
+    int numinsertions;
+    int numinsertionsperthread;
+    string forcefieldname;
+    bool verbose; // 0 or 1 for verbose printing
+    double r_cutoff_squared; // cutoff for LJ potential (A), squared
+    double T; // temperature (K), only needed if Feynman Hibbs is true
+
+    // These are given as arguments to binary Henry
+    string frameworkname;
+    string adsorbate; // label in FF 
+
+    // This must be read from force field object
+    double epsilon_guest; double sigma_guest; // pure sigma, epsilon for adsorbate
+
+    // this is read from the masses.def file
+    double adsorbateMW;
+
+    // these are computed internally, as they are dependent on framework
+    int N_framework_atoms;
+
+    // these must be computed separately and read from a unit cell replication file
+    int replication_factor_a; // for replicating unit cells given by .cssr
+    int replication_factor_b;
+    int replication_factor_c;
+
+    // TODO why not use framework.t_matrix? It will not pass correctly to cuda kernal. not sure why
+    double t_matrix[3][3];
+
+    int num_blocks, num_threads;
+};
+
 struct GridParameters {
 	// These are extracted from the simulation.input file
     string forcefieldname;
@@ -120,6 +153,15 @@ struct Grid_info {
     int numtotalpts;
     int numpockets[2]; // if pocket blocking...
 };
+
+struct Henry_stats
+{
+    double weighted_energy_sum;
+    double canonical_sum;
+    double N_insertions;
+    double void_fraction;
+};
+
 
 struct GCMC_stats
 {

@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
 	//
     Grid_info grid_info; // for storing grid info
 	double * energy_grid0; double * energy_grid1;
-	bool pocket_block_verbose_mode = true;
+	bool pocket_block_verbose_mode = false; // writes grid before and after
 	for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
         int N_x_temp, N_y_temp, N_z_temp;
 		if (parameters.verbose) printf("Importing energy grid %d\n", n_c);

@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     // Construct array of framework particles, framework_atoms, for speed in energy computations
     //
     Particle_f * framework_atoms = (Particle_f *) malloc(framework.noatoms * sizeof(Particle_f));
-    load_fast_particle_f_array(framework_atoms, framework, forcefield, parameters);
+    load_fast_particle_f_array(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
     if (parameters.verbose) printf("Initialized framework_atoms array in host\n");
 
     //
