@@ -170,6 +170,7 @@ int main(int argc, char *argv[])
 	henry_coeff = canonical_sum / (NUM_THREADS * NUM_BLOCKS * parameters.numinsertionsperthread) / parameters.T / 8.314;
 	fprintf(outputfile,  "    Temperature (K): %f\n", parameters.T);
 	fprintf(outputfile,  "    <energy> (kJ/mol): %f\n", ensemble_average_energy * 8.314 /1000.0);
+	fprintf(outputfile,  "    <energy> (K): %f\n", ensemble_average_energy);
 	fprintf(outputfile,  "    Henry coefficient (mol/(kg-Pa)): %f\n", henry_coeff / framework.density);
 	fprintf(outputfile,  "    Henry coefficient (mol/(m3-Pa)): %f\n", henry_coeff);
 }
