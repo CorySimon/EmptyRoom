@@ -239,7 +239,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname);
+    // uc needs to be at least twice the cutoff radius for only methane within r_c to be within cutoff
+    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "twice");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;

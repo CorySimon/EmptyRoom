@@ -1,3 +1,9 @@
 include("julia_codes/framework.jl")
 
-write_uc_replication_file(ARGS[1], 12.5, ARGS[2])
+structures = readdlm("structurelist.txt")
+println("Writing unit cell replication files...")
+
+for k = 1:length(structures)
+    write_uc_replication_file(structures[k], 12.5, "once")
+    write_uc_replication_file(structures[k], 12.5, "twice")
+end

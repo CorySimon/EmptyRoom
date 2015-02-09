@@ -44,6 +44,7 @@ struct particle_g {
 struct HenryParameters {
 	// These are extracted from the simulation.input file
     int numinsertions;
+    int numinsertionsperA3;
     int numinsertionsperthread;
     string forcefieldname;
     bool verbose; // 0 or 1 for verbose printing

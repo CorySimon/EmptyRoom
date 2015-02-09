@@ -65,7 +65,8 @@ int main(int argc, char *argv[]) {
 
     readsimulationinputfile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname);
+    // only need UC to be once the cutoff
+    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "once");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;

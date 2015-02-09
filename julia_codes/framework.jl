@@ -222,6 +222,6 @@ function write_uc_replication_file(structurename::String, cutoff::Float64, once_
     framework = constructframework(structurename)
     rep_factors = get_replication_factors(framework.f_to_cartesian_mtrx, cutoff, once_or_twice)
 
-    f = open("data/uc_replications/" * framework.structurename * ".uc", "w")
+    f = open("data/uc_replications/" * framework.structurename * "_" * once_or_twice * ".uc", "w")
     @printf(f, "%d %d %d", rep_factors[1], rep_factors[2], rep_factors[3])
 end

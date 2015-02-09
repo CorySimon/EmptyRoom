@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 
     readsimulationinputfile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname);
+    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "once");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;
@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
 	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
     parameters.N_framework_atoms = framework.noatoms;
     if (parameters.verbose) printf("Constructed Framework object\n");
+
+    parameters.numinsertions = (int) parameters.numinsertionsperA3 * framework.volume_unitcell;
 
     // grab sigma/epsilon of adsorbate
     pair_double eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate);
@@ -157,13 +159,11 @@ int main(int argc, char *argv[])
 	double canonical_sum = 0.0;
 	double weighted_energy_sum = 0.0;
 
-	bool print_each_block = true;
 	for (int i = 0; i < NUM_BLOCKS; i ++) {
 		canonical_sum += h_statistics[i].canonical_sum;
 		weighted_energy_sum += h_statistics[i].weighted_energy_sum;
-		if (print_each_block) {
+		if (parameters.verbose) 
             printf("Block %d: canonical sum = %f\n", i, h_statistics[i].canonical_sum);
-		}
 	}
 	
 	double ensemble_average_energy = weighted_energy_sum / canonical_sum;

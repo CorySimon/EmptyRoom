@@ -183,6 +183,7 @@ void write_settings_to_outputfile(FILE * outputfile,
     // Henry info
     //
     fprintf(outputfile, "\nHenry info\n    # of blocks: %d\n    # of threads: %d\n    # of insertions per thread: %d\n", parameters.num_blocks, parameters.num_threads, parameters.numinsertionsperthread);
+    fprintf(outputfile, "    Specified # of insertions/ A3: %d\n", parameters.numinsertionsperA3);
     fprintf(outputfile, "    Total # of insertions: %d\n", parameters.numinsertionsperthread * parameters.num_blocks * parameters.num_threads);
 }
 

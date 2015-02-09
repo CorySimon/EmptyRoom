@@ -121,7 +121,7 @@ void readsimulationinputfile(HenryParameters & parameters) {
     parameters.verbose = false;
     parameters.r_cutoff_squared = 12.5 * 12.5;
     parameters.T = -1;
-    parameters.numinsertions = -1;
+    parameters.numinsertionsperA3 = -1;
     
     // grab from simulation.input
     string word;
@@ -134,8 +134,8 @@ void readsimulationinputfile(HenryParameters & parameters) {
         }
         if (word=="Forcefield")
             simfile >> parameters.forcefieldname;
-        if (word=="NumberOfInsertions")
-            simfile >> parameters.numinsertions;
+        if (word=="NumberOfInsertionsPerA3")
+            simfile >> parameters.numinsertionsperA3;
         if (word=="verbosemode")
             simfile >> parameters.verbose;
     }
@@ -145,8 +145,8 @@ void readsimulationinputfile(HenryParameters & parameters) {
         printf("Missing Temperature in simulation.input");
         exit(EXIT_FAILURE);
     }
-    if (parameters.numinsertions < 0.0) {
-        printf("Missing NumberOfInsertions in simulation.input");
+    if (parameters.numinsertionsperA3 < 0.0) {
+        printf("Missing NumberOfInsertionsPerA3 in simulation.input");
         exit(EXIT_FAILURE);
     }
     if (parameters.forcefieldname == "None") {
@@ -235,33 +235,30 @@ void readsimulationinputfile(GCMCParameters & parameters) {
     }
 }
 
-triple_int readunitcellreplicationfile(string frameworkname) {
+triple_int readunitcellreplicationfile(string frameworkname, string once_or_twice) {
 	// read unit cell replication factors from unit cell rep file
+    // once_or_twice indicates cell needs to be twice the size of rc or once
     triple_int uc_dims;
 
 	uc_dims.arg1 = -1; // initialize
     uc_dims.arg2 = -1;
 	uc_dims.arg3 = -1;
-	string uc_filename = "data/uc_replications/" + frameworkname + ".uc";
+	string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
 	ifstream ucfile(uc_filename.c_str());
-	if (ucfile.fail())
-	{
-		printf("unit cell replication factor file not found in data/uc_replications/$frameworkname.uc\n");
+	if (ucfile.fail()) {
+		printf("unit cell replication factor file not found in data/uc_replications/$frameworkname_%s.uc\n", once_or_twice.c_str());
 		exit(EXIT_FAILURE);
 	}
 
-	if ( !(ucfile >> uc_dims.arg1))
-	{
+	if ( !(ucfile >> uc_dims.arg1)) {
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
-	if ( !(ucfile >> uc_dims.arg2))
-	{
+	if ( !(ucfile >> uc_dims.arg2)) {
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
-	if ( !(ucfile >> uc_dims.arg3))
-	{
+	if ( !(ucfile >> uc_dims.arg3)) {
 		printf("Problem reading UC file");
 		exit(EXIT_FAILURE);
 	}
