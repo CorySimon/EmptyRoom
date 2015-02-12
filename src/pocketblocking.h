@@ -7,7 +7,7 @@
 #ifndef POCKETBLOCKING_H
 #define POCKETBLOCKING_H
 
-int find_and_block_pockets(double * energy_grid, Grid_info grid_info, double temperature, GCMCParameters parameters);
+int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double temperature, GCMCParameters parameters);
 
-void write_cube(string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, Grid_info grid_info);
+void WriteCube(string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, GridInfo grid_info);
 #endif

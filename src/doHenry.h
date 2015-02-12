@@ -18,7 +18,7 @@ using namespace std;
 #define NUM_THREADS 256
 #define NUM_BLOCKS 64
 
-inline __device__ void d_frac_to_cart(double t_matrix[][3],
+inline __device__ void DeviceFractionalToCartesian(double t_matrix[][3],
 		double x_f, double y_f, double z_f,
 		double & x, double & y, double & z)
 { // compute Cartesian coordinates from fractional
@@ -30,8 +30,8 @@ inline __device__ void d_frac_to_cart(double t_matrix[][3],
 __global__ void doHenry(
     curandStateMtgp32 * state,
     HenryParameters parameters,
-	Henry_stats * statistics,
-    Particle_f * framework_atoms)
+	HenryStats * statistics,
+    FrameworkParticle * framework_atoms)
 {
 	// each thread writes to this vector stored in the block.
 	__shared__ double temp_energy[NUM_THREADS]; // entry is E_i
@@ -59,7 +59,7 @@ __global__ void doHenry(
 		
         // Cartesian coords of insertion point
         double x, y, z; 
-        d_frac_to_cart(parameters.t_matrix,
+        DeviceFractionalToCartesian(parameters.t_matrix,
             x_f, y_f, z_f,
             x, y, z);
         
@@ -79,7 +79,7 @@ __global__ void doHenry(
                         double y_f_framework = framework_atoms[f].y_f + j;
                         double z_f_framework = framework_atoms[f].z_f + k;
 
-                        d_frac_to_cart(parameters.t_matrix,
+                        DeviceFractionalToCartesian(parameters.t_matrix,
                                 x_f_framework, y_f_framework, z_f_framework,
                                 x_framework, y_framework, z_framework);
 

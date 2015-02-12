@@ -28,7 +28,7 @@ using namespace std;
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
 		    return EXIT_FAILURE;}} while(0)
 
-double read_timer() {
+double ReadTimer() {
     static bool initialized = false;
     static struct timeval start;
     struct timeval end;
@@ -53,11 +53,11 @@ int main(int argc, char *argv[])
     HenryParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
-    parameters.adsorbateMW = get_adsorbate_MW(parameters.adsorbate);
+    parameters.adsorbateMW = GetAdsorbateMW(parameters.adsorbate);
 
-    readsimulationinputfile(parameters);
+    ReadSimulationInputFile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "once");
+    TripleInt uc_reps = ReadUnitCellReplicationFile(parameters.frameworkname, "once");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;
@@ -77,10 +77,10 @@ int main(int argc, char *argv[])
     parameters.N_framework_atoms = framework.noatoms;
     if (parameters.verbose) printf("Constructed Framework object\n");
 
-    parameters.numinsertions = (int) parameters.numinsertionsperA3 * framework.volume_unitcell;
+    parameters.numinsertions = static_cast<int>(parameters.numinsertionsperA3 * framework.volume_unitcell);
 
     // grab sigma/epsilon of adsorbate
-    pair_double eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate);
+    PairDouble eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate);
     parameters.epsilon_guest = eps_sig.arg1;
     parameters.sigma_guest = eps_sig.arg2;
     if (parameters.verbose) printf("Fetched adsorbate FF parameters\n");
@@ -88,8 +88,8 @@ int main(int argc, char *argv[])
     //
     // Construct array of framework particles, framework_atoms, for speed in energy computations
     //
-    Particle_f * framework_atoms = (Particle_f *) malloc(framework.noatoms * sizeof(Particle_f));
-    load_fast_particle_f_array(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
+    FrameworkParticle * framework_atoms = (FrameworkParticle *) malloc(framework.noatoms * sizeof(FrameworkParticle));
+    LoadFastFrameworkParticleArray(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
     if (parameters.verbose) printf("Initialized framework_atoms array in host\n");
 
     parameters.num_blocks = NUM_BLOCKS; parameters.num_threads = NUM_THREADS;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     char outputfilename[512];
     sprintf(outputfilename, "output_files/%s_%s_henry.out", parameters.frameworkname.c_str(), parameters.adsorbate.c_str());
     outputfile = fopen(outputfilename, "w");
-    write_settings_to_outputfile(outputfile, parameters, framework, forcefield, framework_atoms);
+    WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, framework_atoms);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
   
 	//
@@ -129,26 +129,26 @@ int main(int argc, char *argv[])
 	//
     //  Move data to GPU device
     //
-	Henry_stats * d_statistics; // collect statistics from device block
-    CUDA_CALL(cudaMalloc((void **) & d_statistics, sizeof(Henry_stats) * NUM_BLOCKS)); 
-	Particle_f * d_framework_atoms;
-	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(Particle_f)));
-	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(Particle_f), cudaMemcpyHostToDevice));
+	HenryStats * d_statistics; // collect statistics from device block
+    CUDA_CALL(cudaMalloc((void **) & d_statistics, sizeof(HenryStats) * NUM_BLOCKS)); 
+	FrameworkParticle * d_framework_atoms;
+	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
+	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
 //	fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(Particle_f) / (1024.0 * 1024.0));
 	
     //
 	//  RUN WIDOM INSERTIONS
 	//
-	double start_of_sim_time=read_timer();
+	double start_of_sim_time=ReadTimer();
 	doHenry <<< NUM_BLOCKS, NUM_THREADS>>> (devMTGPStates, parameters, d_statistics, d_framework_atoms);
  
 	cudaDeviceSynchronize();
 	
     // get statistics
-	Henry_stats * h_statistics= (Henry_stats *) malloc(NUM_BLOCKS * sizeof(Henry_stats));
-    CUDA_CALL(cudaMemcpy(h_statistics, d_statistics, sizeof(Henry_stats) * NUM_BLOCKS,cudaMemcpyDeviceToHost));
+	HenryStats * h_statistics= (HenryStats *) malloc(NUM_BLOCKS * sizeof(HenryStats));
+    CUDA_CALL(cudaMemcpy(h_statistics, d_statistics, sizeof(HenryStats) * NUM_BLOCKS,cudaMemcpyDeviceToHost));
  	
-    double sim_time = read_timer() - start_of_sim_time;
+    double sim_time = ReadTimer() - start_of_sim_time;
    
     fprintf(outputfile, "\nHenry simulation results\n");
     fprintf(outputfile, "    Simulation time: %f s\n", sim_time);

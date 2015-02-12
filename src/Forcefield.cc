@@ -22,21 +22,22 @@ Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
     }
 
     // count interactions
-    nointeractions = 0;
+    numinteractions = 0;
     string line;
     getline(forcefieldfile, line); // waste a line
-    while (getline(forcefieldfile, line)) nointeractions++;
+    while (getline(forcefieldfile, line)) numinteractions++;
 
-    forcefieldfile.clear(); forcefieldfile.seekg(0, forcefieldfile.beg); // go back to beginning of file
+    forcefieldfile.clear();
+    forcefieldfile.seekg(0, forcefieldfile.beg); // go back to beginning of file
     getline(forcefieldfile,line); // waste a line
 
     // define vector sizes
-    epsilon.resize(nointeractions);
-    sigma.resize(nointeractions);
-    identity.resize(nointeractions);
+    epsilon.resize(numinteractions);
+    sigma.resize(numinteractions);
+    identity.resize(numinteractions);
 
     // extract LJ parameters
-    for (int k = 0; k < nointeractions; k++) {
+    for (int k = 0; k < numinteractions; k++) {
         getline(forcefieldfile, line);
         istringstream stringstream(line);
         stringstream >> identity[k] >> epsilon[k] >> sigma[k]; /// CHECK ORDER OF SIG EPS
@@ -45,7 +46,7 @@ Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
     // if verbose, print result
     if (verbose) {
         printf("Atom epsilon(K) sigma(A)\n");
-    	for (int k = 0; k < nointeractions; k++) {
+    	for (int k = 0; k < numinteractions; k++) {
         	printf("%s %f %f\n", identity[k].c_str(), epsilon[k], sigma[k]);
         }
     }

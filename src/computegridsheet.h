@@ -19,7 +19,7 @@ using namespace std;
 
 #define min_r .000000000001  // don't want to divide by zero...
 
-inline __device__ void d_frac_to_cart(double t_matrix[][3],
+inline __device__ void DeviceFractionalToCartesian(double t_matrix[][3],
 		double x_f, double y_f, double z_f,
 		double & x, double & y, double & z)
 { // compute Cartesian coordinates from fractional
@@ -28,11 +28,11 @@ inline __device__ void d_frac_to_cart(double t_matrix[][3],
     z = t_matrix[2][0] * x_f + t_matrix[2][1] * y_f + t_matrix[2][2] * z_f;
 }
 
-__global__ void computegridsheet(
+__global__ void ComputeGridSheet(
      double * z_f_gridpoints,
      double * y_f_gridpoints,
      double * zy_energies,
-     Particle_f * framework_atoms,
+     FrameworkParticle * framework_atoms,
      GridParameters parameters,
      double x_f)
 {
@@ -50,7 +50,7 @@ __global__ void computegridsheet(
 
     // set up Carteisan coordinates for insertion point and framework
     double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
-    d_frac_to_cart(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
+    DeviceFractionalToCartesian(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
     double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; // cartesian coords of framework (changes inside loop)
 
     for (int i = -parameters.replication_factor_a; i <=parameters.replication_factor_a; i++) { // direction of x and a
@@ -64,7 +64,7 @@ __global__ void computegridsheet(
                     double y_f_framework = framework_atoms[framework_atom_index].y_f + j;
                     double z_f_framework = framework_atoms[framework_atom_index].z_f + k;
 
-                    d_frac_to_cart(parameters.t_matrix,
+                    DeviceFractionalToCartesian(parameters.t_matrix,
                     		x_f_framework, y_f_framework, z_f_framework,
                     		x_framework, y_framework, z_framework);
 

@@ -29,7 +29,7 @@ using namespace std;
 #define min_r .0000000000000001  // don't want to divide by zero...
 #define MAX_GUESTS 2000 // max number of guests in an array
 
-void initialize_GCMC_stats(GCMC_stats & stats) {
+void InitializeGCMCStats(GCMCStats & stats) {
     // initializes GCMC statistics to zero
 	stats.N_move_trials = 0; stats.N_insertion_trials = 0; stats.N_deletion_trials = 0; stats.N_ID_swap_trials = 0;
 	stats.N_insertions = 0;	stats.N_deletions = 0; stats.N_moves = 0; stats.N_ID_swaps = 0;
@@ -39,7 +39,7 @@ void initialize_GCMC_stats(GCMC_stats & stats) {
 	stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
 }
 
-double read_timer() {
+double ReadTimer() {
     static bool initialized = false;
     static struct timeval start;
     struct timeval end;
@@ -52,7 +52,7 @@ double read_timer() {
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
-void frac_to_cart(double T_matrix[3][3],
+void FractionalToCartesian(double T_matrix[3][3],
     double x_f, double y_f, double z_f,
     double & x, double & y, double & z) 
 { 
@@ -62,7 +62,7 @@ void frac_to_cart(double T_matrix[3][3],
 	z = T_matrix[2][0] * x_f + T_matrix[2][1] * y_f + T_matrix[2][2] * z_f;
 }
 
-void cart_to_frac(double inv_T_matrix[3][3],
+void CartesianToFractional(double inv_T_matrix[3][3],
     double & x_f, double & y_f, double & z_f,
     double x, double y, double z)
 { 
@@ -72,7 +72,7 @@ void cart_to_frac(double inv_T_matrix[3][3],
 	z_f = inv_T_matrix[2][0] * x + inv_T_matrix[2][1] * y + inv_T_matrix[2][2] * z;
 }
 
-double wrap_0_to_z(double x, double z) {
+double WrapToInterval(double x, double z) {
     // for applying periodic bc's
 	return x - z * floor(x / z);
 }
@@ -80,9 +80,9 @@ double wrap_0_to_z(double x, double z) {
 //
 // Compute potential energy of guest molecule id "which", the contribution from other guests.
 //
-double E_gg(int N_g, 
+double GuestGuestEnergy(int N_g, 
     int which, 
-    particle_g * guests, 
+    GuestParticle * guests, 
     GCMCParameters parameters)
 {
 	double E_gg_ = 0.0; // initiate
@@ -104,7 +104,7 @@ double E_gg(int N_g,
 //		assert (dy_f > -0.5 * parameters.replication_factor_b);
 //		assert (dz_f > -0.5 * parameters.replication_factor_c);
         double dx, dy, dz;
-		frac_to_cart(parameters.t_matrix,
+		FractionalToCartesian(parameters.t_matrix,
             dx_f, dy_f, dz_f,
             dx, dy, dz);
 		double r2 = dx*dx + dy*dy + dz*dz;
@@ -121,13 +121,13 @@ double E_gg(int N_g,
 //
 // Calculate total system guest-guest energy
 // 
-double E_gg_total(int N_g, 
-       particle_g * guests, 
+double GuestGuestTotalEnergy(int N_g, 
+       GuestParticle * guests, 
        GCMCParameters parameters)
 {
 	double E_gg__ = 0.0;
 	for (int i = 0; i < N_g; i ++) {
-		E_gg__ += E_gg(N_g, i, guests, parameters); 
+		E_gg__ += GuestGuestEnergy(N_g, i, guests, parameters); 
 	}
 	return E_gg__ / 2.0; // 2 is for double counting
 }
@@ -135,7 +135,7 @@ double E_gg_total(int N_g,
 //
 //  Get index of flattened, 1D pointer array that corresponds to grid point index (i, j, k)
 //
-int energy_ind(int i, int j, int k, Grid_info grid_info) {
+int GetEnergyGridIndex(int i, int j, int k, GridInfo grid_info) {
 	// returns index in energy_grid corresponding to gridpoint index i,j,k
 	return k + j * grid_info.N_z + i * grid_info.N_y * grid_info.N_z;
 }
@@ -143,8 +143,8 @@ int energy_ind(int i, int j, int k, Grid_info grid_info) {
 //
 // Interpolate energy grid to get guest-framework energy
 //  
-double E_gf(double x_f_, double y_f_, double z_f_,
-            Grid_info grid_info,
+double GuestFrameworkEnergy(double x_f_, double y_f_, double z_f_,
+            GridInfo grid_info,
 		    double * energy_grid)
 {
 		// reflect fractional coords in [0,1] for grid
@@ -164,10 +164,10 @@ double E_gf(double x_f_, double y_f_, double z_f_,
 		double z_d = (z_f_ - i_z_low * grid_info.dz_f) / grid_info.dz_f;
 		
         // smash cube in x direction
-		double c00 = energy_grid[energy_ind(i_x_low,i_y_low  ,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[energy_ind(i_x_low+1,i_y_low  ,i_z_low  ,grid_info)];
-		double c10 = energy_grid[energy_ind(i_x_low,i_y_low+1,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[energy_ind(i_x_low+1,i_y_low+1,i_z_low  ,grid_info)];
-		double c01 = energy_grid[energy_ind(i_x_low,i_y_low  ,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[energy_ind(i_x_low+1,i_y_low  ,i_z_low+1,grid_info)];
-		double c11 = energy_grid[energy_ind(i_x_low,i_y_low+1,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[energy_ind(i_x_low+1,i_y_low+1,i_z_low+1,grid_info)];
+		double c00 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low  ,grid_info)];
+		double c10 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low  ,grid_info)];
+		double c01 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low+1,grid_info)];
+		double c11 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low+1,grid_info)];
 		
         // further smash cube in y direction
 		double c0 = c00 * (1.0 - y_d) + c10 * y_d;
@@ -180,19 +180,19 @@ double E_gf(double x_f_, double y_f_, double z_f_,
 //
 // Calculate total system framework-guest energy
 //
-double E_gf_total(int N_g, 
+double GuestFrameworkTotalEnergy(int N_g, 
         double * energy_grid0, 
         double * energy_grid1, 
-        particle_g * guests,
-        Grid_info grid_info)
+        GuestParticle * guests,
+        GridInfo grid_info)
 {
 	double E_gf__ = 0.0;
 	for (int i = 0; i < N_g; i ++) {
 		if (guests[i].type == 0)
-			E_gf__ += E_gf(wrap_0_to_z(guests[i].x_f,1.0), wrap_0_to_z(guests[i].y_f,1.0), wrap_0_to_z(guests[i].z_f,1.0),
+			E_gf__ += GuestFrameworkEnergy(WrapToInterval(guests[i].x_f,1.0), WrapToInterval(guests[i].y_f,1.0), WrapToInterval(guests[i].z_f,1.0),
                         grid_info, energy_grid0);
 		if (guests[i].type == 1)
-			E_gf__ += E_gf(wrap_0_to_z(guests[i].x_f,1.0), wrap_0_to_z(guests[i].y_f,1.0), wrap_0_to_z(guests[i].z_f,1.0),
+			E_gf__ += GuestFrameworkEnergy(WrapToInterval(guests[i].x_f,1.0), WrapToInterval(guests[i].y_f,1.0), WrapToInterval(guests[i].z_f,1.0),
 		                grid_info, energy_grid1);
 	}
 	return E_gf__;
@@ -201,7 +201,7 @@ double E_gf_total(int N_g,
 //
 // Write guest positions to file
 //
-void write_guest_postions_to_file(FILE * positionfile, particle_g * guests, int N_g, GCMCParameters parameters) {
+void WriteGuestPostionsToFile(FILE * positionfile, GuestParticle * guests, int N_g, GCMCParameters parameters) {
 	for (int i = 0; i < N_g ; i++) {
 		fprintf(positionfile, "%s %f %f %f\n", 
                 parameters.adsorbate[guests[i].type].c_str(),
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
         parameters.numadsorbates = 2;
     }
 
-    readsimulationinputfile(parameters);
+    ReadSimulationInputFile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
     if ((parameters.numadsorbates == 1) & (parameters.p_identity_change > 0.0)) {
         printf("Only 1 adsorbate and ID swap probability > 1... Make it zero.\n");
@@ -236,15 +236,15 @@ int main(int argc, char *argv[])
     }
     
     // uc needs to be at least twice the cutoff radius for only methane within r_c to be within cutoff
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "twice");
+    TripleInt uc_reps = ReadUnitCellReplicationFile(parameters.frameworkname, "twice");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;
     if (parameters.verbose) printf("Read .uc replication file\n");
     
-    parameters.adsorbateMW[0] = get_adsorbate_MW(parameters.adsorbate[0]);
+    parameters.adsorbateMW[0] = GetAdsorbateMW(parameters.adsorbate[0]);
     if (parameters.numadsorbates == 2)
-        parameters.adsorbateMW[1] = get_adsorbate_MW(parameters.adsorbate[1]);
+        parameters.adsorbateMW[1] = GetAdsorbateMW(parameters.adsorbate[1]);
 
     //
     // Construct forcefield and framework objects
@@ -264,11 +264,11 @@ int main(int argc, char *argv[])
     //
     // Get adsorbate LJ params and store in epsilon and sigma_squared matrices
     //
-    pair_double eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate[0]);
+    PairDouble eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate[0]);
     parameters.epsilon_matrix[0][0] = eps_sig.arg1; 
     parameters.sigma_squared_matrix[0][0] = eps_sig.arg2 * eps_sig.arg2;
     if (parameters.numadsorbates == 2) {
-        eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate[1]);
+        eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate[1]);
         parameters.epsilon_matrix[1][1] = eps_sig.arg1; 
         parameters.sigma_squared_matrix[1][1] = eps_sig.arg2 * eps_sig.arg2;
         // mixing rules
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
 	// Import energy grid
 	// + pocket blocking if enabled.
 	//
-    Grid_info grid_info; // for storing grid info
+    GridInfo grid_info; // for storing grid info
 	double * energy_grid0; double * energy_grid1;
 	bool pocket_block_verbose_mode = false; // writes grid before and after
 	for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
@@ -350,27 +350,27 @@ int main(int argc, char *argv[])
 		// Flood fill/ pocket blocking, if enabled
 		//
 		if (parameters.pocketblocking) {
-			double time_before = read_timer();
+			double time_before = ReadTimer();
 			if (pocket_block_verbose_mode) {
 				printf("Pocket blocking beginning. Write a cube for before\n");
 				if (n_c == 0)
-					write_cube("before_blocking_0", framework, parameters, energy_grid0, grid_info); //just so you can see the grid before ...
+					WriteCube("before_blocking_0", framework, parameters, energy_grid0, grid_info); //just so you can see the grid before ...
 				if (n_c == 1)
-					write_cube("before_blocking_1", framework, parameters, energy_grid1, grid_info); //just so you can see the grid before ...
+					WriteCube("before_blocking_1", framework, parameters, energy_grid1, grid_info); //just so you can see the grid before ...
 			}
 			if (n_c == 0)
-				grid_info.numpockets[0] = find_and_block_pockets(energy_grid0, grid_info, parameters.T, parameters);
+				grid_info.numpockets[0] = FindAndBlockPockets(energy_grid0, grid_info, parameters.T, parameters);
 			if (n_c == 1)
-				grid_info.numpockets[1] = find_and_block_pockets(energy_grid1, grid_info, parameters.T, parameters);
+				grid_info.numpockets[1] = FindAndBlockPockets(energy_grid1, grid_info, parameters.T, parameters);
 			// energy_grid is passed as a poitner, so it is modified now if accessible pockets were there.
 			if (pocket_block_verbose_mode) {
 				printf("Pocket blocking finished. Write a cube for after\n");
-				double time_after = read_timer();
+				double time_after = ReadTimer();
 				printf("Time spent to find and block pockets: %f s\n", time_after - time_before);
 				if (n_c == 0)
-					write_cube("after_blocking_0", framework, parameters, energy_grid0, grid_info); // ... and after pocket blocking
+					WriteCube("after_blocking_0", framework, parameters, energy_grid0, grid_info); // ... and after pocket blocking
 				if (n_c == 1)
-					write_cube("after_blocking_1", framework, parameters, energy_grid1, grid_info); // ... and after pocket blocking
+					WriteCube("after_blocking_1", framework, parameters, energy_grid1, grid_info); // ... and after pocket blocking
 			}
 		}
     }
@@ -378,12 +378,12 @@ int main(int argc, char *argv[])
     //
     // Initialize stats and guests array (includes both components via "type" attribute)
     //
-	GCMC_stats stats;
-    initialize_GCMC_stats(stats);
+	GCMCStats stats;
+    InitializeGCMCStats(stats);
 	
     double volume = framework.volume_unitcell * parameters.replication_factor_a * parameters.replication_factor_b * parameters.replication_factor_c; // A ^ 3
 	
-    particle_g * guests = (particle_g *) malloc(MAX_GUESTS * sizeof(particle_g));
+    GuestParticle * guests = (GuestParticle *) malloc(MAX_GUESTS * sizeof(GuestParticle));
 	int * N_g = (int *) calloc(2,sizeof(int)); // initialize current number of guests
 	N_g[0] = 0; N_g[1] = 0;
 	int N_g_total = 0; // total # guests
@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
             parameters.adsorbate[0].c_str(), parameters.fugacity[0],
             parameters.adsorbate[1].c_str(), parameters.fugacity[1]);
     outputfile = fopen(outputfilename, "w");
-    write_settings_to_outputfile(outputfile, parameters, framework, forcefield, grid_info);
+    WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, grid_info);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
 
     //
@@ -428,7 +428,7 @@ int main(int argc, char *argv[])
 	//
 	//  Run GCMC
 	//
-	double start_of_sim_time=read_timer();
+	double start_of_sim_time=ReadTimer();
 	if (parameters.verbose) printf("Starting simulation...\n");
 	double E_gg_this_cycle = 0.0; double E_gf_this_cycle = 0.0; // assumes that we start with zero particles
 	int cycle_counter = 0;
@@ -455,7 +455,7 @@ int main(int argc, char *argv[])
 				guests[N_g_total].y_f = uniform01(generator) * parameters.replication_factor_b;
 				guests[N_g_total].z_f = uniform01(generator) * parameters.replication_factor_c;
                 // what are the Cartesian coords?
-				double x, y, z; frac_to_cart(parameters.t_matrix, guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, x, y, z);
+				double x, y, z; FractionalToCartesian(parameters.t_matrix, guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, x, y, z);
 				guests[N_g_total].x = x;
 				guests[N_g_total].y = y;
 				guests[N_g_total].z = z;
@@ -465,12 +465,12 @@ int main(int argc, char *argv[])
 				// compute energy of this inserted particle
 				double energy_gf = 1e6;
 				if (which_type == 0)
-					energy_gf = E_gf(wrap_0_to_z(guests[N_g_total].x_f , 1.0),wrap_0_to_z(guests[N_g_total].y_f , 1.0), wrap_0_to_z(guests[N_g_total].z_f ,1.0),
+					energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[N_g_total].x_f , 1.0),WrapToInterval(guests[N_g_total].y_f , 1.0), WrapToInterval(guests[N_g_total].z_f ,1.0),
                                     grid_info, energy_grid0);
 				if (which_type == 1)
-					energy_gf = E_gf(wrap_0_to_z(guests[N_g_total].x_f , 1.0),wrap_0_to_z(guests[N_g_total].y_f , 1.0), wrap_0_to_z(guests[N_g_total].z_f ,1.0),
+					energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[N_g_total].x_f , 1.0),WrapToInterval(guests[N_g_total].y_f , 1.0), WrapToInterval(guests[N_g_total].z_f ,1.0),
                                     grid_info, energy_grid1);
-				double energy_gg = E_gg(N_g_total, N_g_total, guests, parameters);
+				double energy_gg = GuestGuestEnergy(N_g_total, N_g_total, guests, parameters);
 				double E_insertion = energy_gf + energy_gg;
 
 				// accept, loosely, if energetically favorable
@@ -524,12 +524,12 @@ int main(int argc, char *argv[])
 					// compute energy of this guest that we propose to delete
 					double energy_gf = 1e6;
 					if (which_type == 0)
-						energy_gf = E_gf(wrap_0_to_z(guests[idx_delete].x_f , 1.0),wrap_0_to_z(guests[idx_delete].y_f , 1.0), wrap_0_to_z(guests[idx_delete].z_f ,1.0),
+						energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[idx_delete].x_f , 1.0),WrapToInterval(guests[idx_delete].y_f , 1.0), WrapToInterval(guests[idx_delete].z_f ,1.0),
                                         grid_info, energy_grid0);
 					if (which_type == 1)
-						energy_gf = E_gf(wrap_0_to_z(guests[idx_delete].x_f , 1.0),wrap_0_to_z(guests[idx_delete].y_f , 1.0), wrap_0_to_z(guests[idx_delete].z_f ,1.0),
+						energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[idx_delete].x_f , 1.0),WrapToInterval(guests[idx_delete].y_f , 1.0), WrapToInterval(guests[idx_delete].z_f ,1.0),
                                         grid_info, energy_grid1);
-					double energy_gg = E_gg(N_g_total, idx_delete, guests, parameters);
+					double energy_gg = GuestGuestEnergy(N_g_total, idx_delete, guests, parameters);
 					double E_deletion = energy_gf + energy_gg;
 
                     // accept deletion if, loosely, energetically favorable
@@ -581,15 +581,15 @@ int main(int argc, char *argv[])
                     // compute energy in current (old) position
 					double energy_gf_old = 0.0;
 					if (which_type == 0)
-						energy_gf_old = E_gf(wrap_0_to_z(guests[idx_move].x_f , 1.0),wrap_0_to_z(guests[idx_move].y_f , 1.0), wrap_0_to_z(guests[idx_move].z_f ,1.0),
+						energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
                                             grid_info, energy_grid0);
 					if (which_type == 1)
-						energy_gf_old = E_gf(wrap_0_to_z(guests[idx_move].x_f , 1.0),wrap_0_to_z(guests[idx_move].y_f , 1.0), wrap_0_to_z(guests[idx_move].z_f ,1.0),
+						energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
                                             grid_info, energy_grid1);
-					double energy_gg_old = E_gg(N_g_total, idx_move, guests, parameters);
+					double energy_gg_old = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
 
 					// store old coords
-					particle_g old_position = guests[idx_move];
+					GuestParticle old_position = guests[idx_move];
 
 					// perturb the position in Cartesian space
 					guests[idx_move].x += parameters.delta * (uniform01(generator) - 0.5);
@@ -598,7 +598,7 @@ int main(int argc, char *argv[])
 
 					// convert back to fractional coords
 					double x_f, y_f, z_f;
-					cart_to_frac(parameters.inv_t_matrix, x_f, y_f, z_f, guests[idx_move].x, guests[idx_move].y, guests[idx_move].z);
+					CartesianToFractional(parameters.inv_t_matrix, x_f, y_f, z_f, guests[idx_move].x, guests[idx_move].y, guests[idx_move].z);
 					guests[idx_move].x_f = x_f;
 					guests[idx_move].y_f = y_f;
 					guests[idx_move].z_f = z_f;
@@ -607,11 +607,11 @@ int main(int argc, char *argv[])
 					if ((x_f > parameters.replication_factor_a) | (y_f > parameters.replication_factor_b) | (z_f > parameters.replication_factor_c) | 
                                         (x_f < 0.0) | (y_f < 0.0) | (z_f < 0.0)) {
 						// adjust fractional coordinates, then later Cartesian coords
-						guests[idx_move].x_f = wrap_0_to_z(x_f,parameters.replication_factor_a);
-						guests[idx_move].y_f = wrap_0_to_z(y_f,parameters.replication_factor_b);
-						guests[idx_move].z_f = wrap_0_to_z(z_f,parameters.replication_factor_c);
+						guests[idx_move].x_f = WrapToInterval(x_f,parameters.replication_factor_a);
+						guests[idx_move].y_f = WrapToInterval(y_f,parameters.replication_factor_b);
+						guests[idx_move].z_f = WrapToInterval(z_f,parameters.replication_factor_c);
 						double x,y,z;
-						frac_to_cart(parameters.t_matrix, guests[idx_move].x_f, guests[idx_move].y_f, guests[idx_move].z_f, x, y, z);
+						FractionalToCartesian(parameters.t_matrix, guests[idx_move].x_f, guests[idx_move].y_f, guests[idx_move].z_f, x, y, z);
 						guests[idx_move].x = x;
 						guests[idx_move].y = y;
 						guests[idx_move].z = z;
@@ -623,12 +623,12 @@ int main(int argc, char *argv[])
 					// get energy at new position
 					double energy_gf_new = 1e6;
 					if (which_type == 0)
-						energy_gf_new = E_gf(wrap_0_to_z(guests[idx_move].x_f , 1.0),wrap_0_to_z(guests[idx_move].y_f , 1.0), wrap_0_to_z(guests[idx_move].z_f ,1.0),
+						energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
 											grid_info, energy_grid0);
 					if (which_type == 1)
-						energy_gf_new = E_gf(wrap_0_to_z(guests[idx_move].x_f , 1.0),wrap_0_to_z(guests[idx_move].y_f , 1.0), wrap_0_to_z(guests[idx_move].z_f ,1.0),
+						energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
 											grid_info, energy_grid1);
-					double energy_gg_new = E_gg(N_g_total, idx_move, guests, parameters);
+					double energy_gg_new = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
 
 					double dE = energy_gf_new + energy_gg_new - (energy_gf_old + energy_gg_old);
 					if (rand_for_acceptance < exp(-dE/parameters.T)) {
@@ -663,10 +663,10 @@ int main(int argc, char *argv[])
 //					assert(guests[idx].type == which_type);
 
 					// get energy difference with current ID
-					double energy_gg_old = E_gg(N_g_total, idx , guests, parameters);
-					double energy_gf_0 = E_gf(wrap_0_to_z(guests[idx].x_f , 1.0),wrap_0_to_z(guests[idx].y_f , 1.0), wrap_0_to_z(guests[idx].z_f ,1.0),
+					double energy_gg_old = GuestGuestEnergy(N_g_total, idx , guests, parameters);
+					double energy_gf_0 = GuestFrameworkEnergy(WrapToInterval(guests[idx].x_f , 1.0),WrapToInterval(guests[idx].y_f , 1.0), WrapToInterval(guests[idx].z_f ,1.0),
                                             grid_info, energy_grid0);
-					double energy_gf_1 = E_gf(wrap_0_to_z(guests[idx].x_f , 1.0),wrap_0_to_z(guests[idx].y_f , 1.0), wrap_0_to_z(guests[idx].z_f ,1.0),
+					double energy_gf_1 = GuestFrameworkEnergy(WrapToInterval(guests[idx].x_f , 1.0),WrapToInterval(guests[idx].y_f , 1.0), WrapToInterval(guests[idx].z_f ,1.0),
                                             grid_info, energy_grid1);
 					
                     // change identity, recalculate energy
@@ -675,14 +675,14 @@ int main(int argc, char *argv[])
 					if (which_type == 1)
 						guests[idx].type = 0;
 					
-                    double energy_gg_new = E_gg(N_g_total, idx , guests, parameters);
+                    double energy_gg_new = GuestGuestEnergy(N_g_total, idx , guests, parameters);
 					double dE;
 					if (which_type == 0) // if changing it to a 1
 						dE = energy_gf_1 + energy_gg_new - (energy_gf_0 + energy_gg_old);
 					if (which_type == 1) // if changing it to a 0
 						dE = energy_gf_0 + energy_gg_new - (energy_gf_1 + energy_gg_old);
 					int new_type = guests[idx].type;
-					double prob_acceptance_ID_swap = exp(-dE / parameters.T) * parameters.fugacity[new_type] / parameters.fugacity[which_type] * (double) N_g[which_type] / ((double) N_g[new_type]+ 1.0);
+					double prob_acceptance_ID_swap = exp(-dE / parameters.T) * parameters.fugacity[new_type] / parameters.fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[new_type]) + 1.0);
 					if (rand_for_acceptance < prob_acceptance_ID_swap) { // ACCEPT
 						stats.N_ID_swaps += 1;
 						// keep guest particle as new declared type.
@@ -727,7 +727,7 @@ int main(int argc, char *argv[])
 			if (parameters.writeadsorbatepositions) {
                 if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.writepositionfrequency == 0)) {
                     N_snapshots ++;
-                    write_guest_postions_to_file(adsorbatepositionfile, guests, N_g_total, parameters);
+                    WriteGuestPostionsToFile(adsorbatepositionfile, guests, N_g_total, parameters);
                 }
             }
 
@@ -750,11 +750,11 @@ int main(int argc, char *argv[])
 	stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
 	stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
 
- 	double sim_time = read_timer()-start_of_sim_time;
+ 	double sim_time = ReadTimer()-start_of_sim_time;
     fprintf(outputfile, "\nEnergy checks\n");
 	// check energy calcs
-	double E_gg_system = E_gg_total(N_g[0] + N_g[1], guests, parameters);
-	double E_gf_system = E_gf_total(N_g[0] + N_g[1], energy_grid0, energy_grid1, guests, grid_info);
+	double E_gg_system = GuestGuestTotalEnergy(N_g[0] + N_g[1], guests, parameters);
+	double E_gf_system = GuestFrameworkTotalEnergy(N_g[0] + N_g[1], energy_grid0, energy_grid1, guests, grid_info);
     fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
     fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
     fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);

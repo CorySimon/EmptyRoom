@@ -8,11 +8,11 @@
 #ifndef WRITE_TO_OUTPUTFILE_H_
 #define WRITE_TO_OUTPUTFILE_H_
 
-void write_settings_to_outputfile(FILE * outputfile,
+void WriteSettingsToOutputfile(FILE * outputfile,
 		GridParameters parameters,
 		Framework framework,
 		Forcefield forcefield,
-		Particle_f * framework_atoms) {
+		FrameworkParticle * framework_atoms) {
     //
 	// Write date
 	//
@@ -34,7 +34,7 @@ void write_settings_to_outputfile(FILE * outputfile,
     		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.nointeractions; a++) { // for every atom in force field, look for it in framework
+	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
 		int count_atom_a = 0;
 		for (int k = 0; k < framework.noatoms; k++) {
 			if (framework.identity[k] == forcefield.identity[a])
@@ -100,11 +100,11 @@ void write_settings_to_outputfile(FILE * outputfile,
     fprintf(outputfile, "    Actual grid spacing: da = %f A, db = %f A, dc = %f A\n", da, db, dc);
 }
 
-void write_settings_to_outputfile(FILE * outputfile,
+void WriteSettingsToOutputfile(FILE * outputfile,
 		HenryParameters parameters,
 		Framework framework,
 		Forcefield forcefield,
-		Particle_f * framework_atoms) {
+		FrameworkParticle * framework_atoms) {
     //
 	// Write date
 	//
@@ -126,7 +126,7 @@ void write_settings_to_outputfile(FILE * outputfile,
     		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.nointeractions; a++) { // for every atom in force field, look for it in framework
+	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
 		int count_atom_a = 0;
 		for (int k = 0; k < framework.noatoms; k++) {
 			if (framework.identity[k] == forcefield.identity[a])
@@ -188,11 +188,11 @@ void write_settings_to_outputfile(FILE * outputfile,
     fprintf(outputfile, "    Total # of insertions: %d\n", parameters.numinsertionsperthread * parameters.num_blocks * parameters.num_threads);
 }
 
-void write_settings_to_outputfile(FILE * outputfile,
+void WriteSettingsToOutputfile(FILE * outputfile,
 		GCMCParameters parameters,
 		Framework framework,
 		Forcefield forcefield,
-        Grid_info grid_info) 
+        GridInfo grid_info) 
 {
     //
 	// Write date
@@ -219,7 +219,7 @@ void write_settings_to_outputfile(FILE * outputfile,
     		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.nointeractions; a++) { // for every atom in force field, look for it in framework
+	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
 		int count_atom_a = 0;
 		for (int k = 0; k < framework.noatoms; k++) {
 			if (framework.identity[k] == forcefield.identity[a])

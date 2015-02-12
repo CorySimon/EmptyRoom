@@ -9,15 +9,15 @@
 #define DATATYPESs_H_
 #include<string>
 
-struct triple_int {
+struct TripleInt {
     int arg1, arg2, arg3;
 }; // 3d vect
 
-struct pair_double {
+struct PairDouble {
     double arg1, arg2;
 }; // 2d vect
 
-struct Particle_f {
+struct FrameworkParticle {
 	// for fast LJ computations
     double x_f;
     double y_f;
@@ -27,7 +27,7 @@ struct Particle_f {
    // double reduced_mass; // for Feynman Hibbs
 };
 
-struct particle_g { 
+struct GuestParticle { 
 // for guests particles
 	// Cartesian coords
 	double x;
@@ -151,7 +151,7 @@ struct GCMCParameters {
     int writepositionfrequency;
 };
 
-struct Grid_info {
+struct GridInfo {
     // for GCMC ease
     int N_x, N_y, N_z;
     double dx_f, dy_f, dz_f;
@@ -159,7 +159,7 @@ struct Grid_info {
     int numpockets[2]; // if pocket blocking...
 };
 
-struct Henry_stats
+struct HenryStats
 {
     double weighted_energy_sum;
     double canonical_sum;
@@ -168,7 +168,7 @@ struct Henry_stats
 };
 
 
-struct GCMC_stats
+struct GCMCStats
 {
 	// count trials
 	int N_insertion_trials;

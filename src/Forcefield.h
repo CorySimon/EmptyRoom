@@ -16,7 +16,7 @@ class Forcefield {
 public:
 	Forcefield(string forcefield, bool verbose=false);
 
-    int nointeractions; // number of interactions defined
+    int numinteractions; // number of interactions defined
     string name;
     vector<double> epsilon; // LJ parameter units: K
     vector<double> sigma; // LJ parameter units: A

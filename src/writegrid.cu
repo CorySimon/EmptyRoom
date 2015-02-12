@@ -28,7 +28,7 @@ using namespace std;
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
             return EXIT_FAILURE;}} while(0)
 
-double read_timer() {
+double ReadTimer() {
     static bool initialized = false;
     static struct timeval start;
     struct timeval end;
@@ -41,7 +41,7 @@ double read_timer() {
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
-void host_frac_to_cart(double t_matrix[][3],
+void HostFractionalToCartesian(double t_matrix[][3],
 		double x_f, double y_f,double z_f,
 		double & x, double & y, double & z) {
 	// compute Cartesian coordinates from fractional
@@ -61,12 +61,12 @@ int main(int argc, char *argv[]) {
     GridParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
-    parameters.adsorbateMW = get_adsorbate_MW(parameters.adsorbate);
+    parameters.adsorbateMW = GetAdsorbateMW(parameters.adsorbate);
 
-    readsimulationinputfile(parameters);
+    ReadSimulationInputFile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
     // only need UC to be once the cutoff
-    triple_int uc_reps = readunitcellreplicationfile(parameters.frameworkname, "once");
+    TripleInt uc_reps = ReadUnitCellReplicationFile(parameters.frameworkname, "once");
     parameters.replication_factor_a = uc_reps.arg1;
     parameters.replication_factor_b = uc_reps.arg2;
     parameters.replication_factor_c = uc_reps.arg3;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
     if (parameters.verbose) printf("Constructed Framework object\n");
 
     // grab sigma/epsilon of adsorbate
-    pair_double eps_sig = get_guest_FF_params_from_Forcefield(forcefield, parameters.adsorbate);
+    PairDouble eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate);
     parameters.epsilon_guest = eps_sig.arg1;
     parameters.sigma_guest = eps_sig.arg2;
     if (parameters.verbose) printf("Fetched adsorbate FF parameters\n");
@@ -90,16 +90,16 @@ int main(int argc, char *argv[]) {
     //
     // Construct array of framework particles, framework_atoms, for speed in energy computations
     //
-    Particle_f * framework_atoms = (Particle_f *) malloc(framework.noatoms * sizeof(Particle_f));
-    load_fast_particle_f_array(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
+    FrameworkParticle * framework_atoms = (FrameworkParticle *) malloc(framework.noatoms * sizeof(FrameworkParticle));
+    LoadFastFrameworkParticleArray(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
     if (parameters.verbose) printf("Initialized framework_atoms array in host\n");
 
     //
     // Construct grid
     //
-    int N_x = (int) ceil(framework.a / parameters.grid_resolution); // size of grid
-    int N_y = (int) ceil(framework.b / parameters.grid_resolution);
-    int N_z = (int) ceil(framework.c / parameters.grid_resolution);
+    int N_x = static_cast<int>(ceil(framework.a / parameters.grid_resolution)); // size of grid
+    int N_y = static_cast<int>(ceil(framework.b / parameters.grid_resolution));
+    int N_z = static_cast<int>(ceil(framework.c / parameters.grid_resolution));
     parameters.N_x = N_x; parameters.N_y = N_y; parameters.N_z = N_z;
 
     // pointer array of fractional grid points
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
     char outputfilename[512];
     sprintf(outputfilename, "output_files/%s_%s_grid.out", parameters.frameworkname.c_str(), parameters.adsorbate.c_str());
     outputfile = fopen(outputfilename, "w");
-    write_settings_to_outputfile(outputfile, parameters, framework, forcefield, framework_atoms);
+    WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, framework_atoms);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
 
     //
@@ -157,7 +157,7 @@ int main(int argc, char *argv[]) {
 		  double atomic_mass = 1.0;
 		  int atomic_number = 1;
 		  // TODO get atomic numbers and atomic masses, for now just say they are all H ha ha
-		  host_frac_to_cart(framework.t_matrix, framework_atoms[i].x_f, framework_atoms[i].y_f, framework_atoms[i].z_f , x, y, z);
+		  HostFractionalToCartesian(framework.t_matrix, framework_atoms[i].x_f, framework_atoms[i].y_f, framework_atoms[i].z_f , x, y, z);
 		  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf % 13.6lf\n", atomic_number, atomic_mass, x, y, z);
 	  }
 	  fprintf(gridfile," 1    1\n");
@@ -181,10 +181,10 @@ int main(int argc, char *argv[]) {
 	double * d_zy_energies;
 	CUDA_CALL(cudaMalloc((void **) & d_zy_energies, N_z * N_y * sizeof(double)));
 	// Copy framework_atoms to device. All blocks share this.
-	Particle_f * d_framework_atoms;
-	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(Particle_f)));
-	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(Particle_f), cudaMemcpyHostToDevice));
-	fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(Particle_f) / (1024.0 * 1024.0));
+	FrameworkParticle * d_framework_atoms;
+	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
+	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
+	fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(FrameworkParticle) / (1024.0 * 1024.0));
 	// copy z_f and y_f grid points to device. The parallelization strategy is to pass sheets of x = constant, so this is not needed on the device.
 	double * d_z_f_gridpoints;
 	double * d_y_f_gridpoints;
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
     fprintf(outputfile, "    A block is %d by %d threads.\n", SQRT_N_THREADS, SQRT_N_THREADS);
     dim3 dimBlock(SQRT_N_THREADS, SQRT_N_THREADS); // size of block. making 2D thread block
     dim3 dimGrid(N_z / SQRT_N_THREADS + 1, N_y / SQRT_N_THREADS + 1);
-	double t0 = read_timer();
+	double t0 = ReadTimer();
 	if (parameters.verbose) printf("Starting loop to write grid...\n# x-grid points: %d\n", N_x);
 
 	for (int i=0; i<3; i++) {
@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
 
 	int count_grid_pts = 0;
     for (int i = 0; i < N_x; i++) {
-        computegridsheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
+        ComputeGridSheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
         		d_y_f_gridpoints,
         		d_zy_energies,
         		d_framework_atoms,
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
         if (parameters.verbose) printf("   Sheet %d out of %d completed.\n", i, N_x);
     } // end x loop
 
-    double sim_time = read_timer() - t0;
+    double sim_time = ReadTimer() - t0;
     fprintf(outputfile, "    Time to write grid: %f s\n", sim_time);
     if (parameters.verbose) printf("Completed grid writing! Freeing up memory in GPU...\n");
 

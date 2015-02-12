@@ -16,7 +16,7 @@ using namespace std;
 #define READSIMULATIONmassesfile_H_
 
 // assign adsorbate MW to parameters attribute
-double get_adsorbate_MW(string adsorbate) {
+double GetAdsorbateMW(string adsorbate) {
     // open masses.def file with atomic masses
     string massesfilename = "data/masses.def";
     ifstream massesfile(massesfilename.c_str());
@@ -48,7 +48,7 @@ double get_adsorbate_MW(string adsorbate) {
     return adsorbatemolecularweight;
 }
 
-void readsimulationinputfile(GridParameters & parameters) {
+void ReadSimulationInputFile(GridParameters & parameters) {
 	// Read simulation.input into parameters.
 	string siminputfilename = "simulation.input";
 	ifstream simfile(siminputfilename.c_str());
@@ -106,7 +106,7 @@ void readsimulationinputfile(GridParameters & parameters) {
     }
 }
 
-void readsimulationinputfile(HenryParameters & parameters) {
+void ReadSimulationInputFile(HenryParameters & parameters) {
 	// Read simulation.input into parameters. 
 	string siminputfilename = "simulation.input";
 	ifstream simfile(siminputfilename.c_str());
@@ -155,7 +155,7 @@ void readsimulationinputfile(HenryParameters & parameters) {
     }
 }
 
-void readsimulationinputfile(GCMCParameters & parameters) {
+void ReadSimulationInputFile(GCMCParameters & parameters) {
 	// Read simulation.input into parameters. bool gcmc is true if this is gcmc
 	string siminputfilename = "simulation.input";
 	ifstream simfile(siminputfilename.c_str());
@@ -240,10 +240,10 @@ void readsimulationinputfile(GCMCParameters & parameters) {
     }
 }
 
-triple_int readunitcellreplicationfile(string frameworkname, string once_or_twice) {
+TripleInt ReadUnitCellReplicationFile(string frameworkname, string once_or_twice) {
 	// read unit cell replication factors from unit cell rep file
     // once_or_twice indicates cell needs to be twice the size of rc or once
-    triple_int uc_dims;
+    TripleInt uc_dims;
 
 	uc_dims.arg1 = -1; // initialize
     uc_dims.arg2 = -1;
@@ -273,11 +273,11 @@ triple_int readunitcellreplicationfile(string frameworkname, string once_or_twic
     return uc_dims;
 }
 
-pair_double get_guest_FF_params_from_Forcefield(Forcefield forcefield, string adsorbate) {
+PairDouble GrabGuestForceFieldParams(Forcefield forcefield, string adsorbate) {
 	// searches through Forcefield object to get LJ params for adsorbate
-    pair_double eps_sig; // [epsilon, sigma] vector
+    PairDouble eps_sig; // [epsilon, sigma] vector
 	bool found_adsorbate = false;
-	for (int i =0; i < forcefield.nointeractions; i++) {
+	for (int i =0; i < forcefield.numinteractions; i++) {
 		if (forcefield.identity[i] == adsorbate) {
 			found_adsorbate = true;
 			eps_sig.arg1 = forcefield.epsilon[i];
@@ -292,4 +292,5 @@ pair_double get_guest_FF_params_from_Forcefield(Forcefield forcefield, string ad
 	}
     return eps_sig;
 }
+
 #endif /* READSIMULATIONmassesfile_H_ */

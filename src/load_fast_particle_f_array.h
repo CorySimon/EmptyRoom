@@ -10,7 +10,7 @@
 #ifndef LOAD_FAST_PARTICLE_F_ARRAY_H_
 #define LOAD_FAST_PARTICLE_F_ARRAY_H_
 
-void load_fast_particle_f_array(Particle_f * framework_atoms, Framework framework, Forcefield forcefield, double epsilon_guest, double sigma_guest) {
+void LoadFastFrameworkParticleArray(FrameworkParticle * framework_atoms, Framework framework, Forcefield forcefield, double epsilon_guest, double sigma_guest) {
 	for (int i = 0; i < framework.noatoms; i++) {
 		// keep framework_atoms on device as fractional coordinates [0,1]^3 (makes implementing periodic BC easier)
 		framework_atoms[i].x_f = framework.x_f[i];
@@ -19,7 +19,7 @@ void load_fast_particle_f_array(Particle_f * framework_atoms, Framework framewor
 
 		bool found_frameworkatom = false;
 		double epsilon; double sigma; // for storing epsilon and sigma for this framework atom
-		for (int k = 0; k < forcefield.nointeractions;k++) {
+		for (int k = 0; k < forcefield.numinteractions;k++) {
 			if (forcefield.identity[k] == framework.identity[i]) {
 				epsilon = forcefield.epsilon[k];
 				sigma = forcefield.sigma[k];
