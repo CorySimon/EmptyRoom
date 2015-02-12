@@ -1,6 +1,6 @@
 Forcefield UFF noble_gas_zeolitesOO.def PPNforcefield.def TexasMOFforcefield.def CaleroCH4zeolites.def testforcefield.def # store as .def
 
-GridResolution 0.5 A
+GridResolution 0.09 A
 CutoffRadius 12.5 A
 VoidFractionEnergyThreshold 0
 GridOutputFormat txt # write txt for henry calcs, or cube for vis
@@ -8,15 +8,21 @@ GridOutputFormat txt # write txt for henry calcs, or cube for vis
 FeynmanHibbs 0 # put "1" or "0"
 Temperature 298 K
 
-verbosemode 1
-DebugMode 1
-PocketBlocking 1
+# for Henry
+NumberOfInsertionsPerA3 1000
 
 # for GCMC
-NumberOfTrials 1 
+NumberOfTrials 300000
 SampleFrequency 10
-CyclesForEquilibrium 0
-TrialProbability(Move) 0.3
-TrialProbability(Exchange) 0.7
+CyclesForEquilibrium 150000
+TrialProbability(Move) 0.4
+TrialProbability(Exchange) 0.6
 TrialProbability(IdentityChange) 0.0
 move_delta 0.3
+PocketBlocking 0
+WriteAdsorbatePositions 1
+WritePositionFrequency 50000
+
+verbosemode 0
+DebugMode 0
+
