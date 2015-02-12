@@ -9,14 +9,14 @@
 #define WRITE_TO_OUTPUTFILE_H_
 
 void WriteSettingsToOutputfile(FILE * outputfile,
-		GridParameters parameters,
-		Framework framework,
-		Forcefield forcefield,
-		FrameworkParticle * framework_atoms) {
+        GridParameters parameters,
+        Framework framework,
+        Forcefield forcefield,
+        FrameworkParticle * framework_atoms) {
     //
-	// Write date
-	//
-	time_t t = time(0); // get time now
+    // Write date
+    //
+    time_t t = time(0); // get time now
     struct tm * now = localtime(&t);
     fprintf(outputfile, "date: %d-%d-%d\n\n", (now->tm_year + 1900), (now->tm_mon + 1), now->tm_mday);
 
@@ -30,36 +30,36 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "Structure: %s\n", framework.name.c_str());
     fprintf(outputfile, "    Crystal density (kg/m3): %f\n", framework.density);
     fprintf(outputfile, "    a = %f A; b = %f A; c = %f A\n    alpha = %f, beta = %f, gamma = %f\n",
-    		framework.a, framework.b, framework.c,
-    		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
+            framework.a, framework.b, framework.c,
+            framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
-		int count_atom_a = 0;
-		for (int k = 0; k < framework.noatoms; k++) {
-			if (framework.identity[k] == forcefield.identity[a])
-				count_atom_a += 1;
-		}
-		if (count_atom_a != 0)
+    for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
+        int count_atom_a = 0;
+        for (int k = 0; k < framework.noatoms; k++) {
+            if (framework.identity[k] == forcefield.identity[a])
+                count_atom_a += 1;
+        }
+        if (count_atom_a != 0)
             fprintf(outputfile, "    %s    %d\n", forcefield.identity[a].c_str(), count_atom_a);
-	}
+    }
     fprintf(outputfile, "\n    Tranformation matrix:\n");
-	for (int i=0; i<3; i++) {
+    for (int i=0; i<3; i++) {
         fprintf(outputfile, "    ");
-		for (int j=0; j<3; j++){
+        for (int j=0; j<3; j++){
             fprintf(outputfile, " %f " , framework.t_matrix[i][j]);
-		}
+        }
         fprintf(outputfile, "\n");
-	}
+    }
 
 
-	//
-	// Forcefield information
-	//
-	fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
-	fprintf(outputfile, "    %s epsilon (K) = %f, sigma (A) = %f\n", parameters.adsorbate.c_str(), parameters.epsilon_guest, parameters.sigma_guest);
+    //
+    // Forcefield information
+    //
+    fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
+    fprintf(outputfile, "    %s epsilon (K) = %f, sigma (A) = %f\n", parameters.adsorbate.c_str(), parameters.epsilon_guest, parameters.sigma_guest);
     fprintf(outputfile, "    For LJ cutoff %f A, unit cell replication factors: %d %d %d\n", sqrt(parameters.r_cutoff_squared),
-    		        parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
+                    parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
     fprintf(outputfile, "    %s-XX interactions present:\n    XX    epsilon(K)    sigma(A)\n", parameters.adsorbate.c_str());
     vector<string> printed_these;
     int N_interactions = 0; // keep track of which interaction we printed
@@ -92,8 +92,8 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     // Grid info
     //
     fprintf(outputfile, "\nGrid: %d by %d by %d points. Total grid points = %d\n",
-    		parameters.N_x, parameters.N_y, parameters.N_z,
-    		parameters.N_x * parameters.N_y * parameters.N_z);
+            parameters.N_x, parameters.N_y, parameters.N_z,
+            parameters.N_x * parameters.N_y * parameters.N_z);
     double da = framework.a / (parameters.N_x - 1); // actual grid spacing
     double db = framework.b / (parameters.N_y - 1);
     double dc = framework.c / (parameters.N_z - 1);
@@ -101,14 +101,14 @@ void WriteSettingsToOutputfile(FILE * outputfile,
 }
 
 void WriteSettingsToOutputfile(FILE * outputfile,
-		HenryParameters parameters,
-		Framework framework,
-		Forcefield forcefield,
-		FrameworkParticle * framework_atoms) {
+        HenryParameters parameters,
+        Framework framework,
+        Forcefield forcefield,
+        FrameworkParticle * framework_atoms) {
     //
-	// Write date
-	//
-	time_t t = time(0); // get time now
+    // Write date
+    //
+    time_t t = time(0); // get time now
     struct tm * now = localtime(&t);
     fprintf(outputfile, "date: %d-%d-%d\n\n", (now->tm_year + 1900), (now->tm_mon + 1), now->tm_mday);
 
@@ -122,35 +122,35 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "Structure: %s\n", framework.name.c_str());
     fprintf(outputfile, "    Crystal density (kg/m3): %f\n", framework.density);
     fprintf(outputfile, "    a = %f A; b = %f A; c = %f A\n    alpha = %f, beta = %f, gamma = %f\n",
-    		framework.a, framework.b, framework.c,
-    		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
+            framework.a, framework.b, framework.c,
+            framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
-		int count_atom_a = 0;
-		for (int k = 0; k < framework.noatoms; k++) {
-			if (framework.identity[k] == forcefield.identity[a])
-				count_atom_a += 1;
-		}
-		if (count_atom_a != 0)
+    for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
+        int count_atom_a = 0;
+        for (int k = 0; k < framework.noatoms; k++) {
+            if (framework.identity[k] == forcefield.identity[a])
+                count_atom_a += 1;
+        }
+        if (count_atom_a != 0)
             fprintf(outputfile, "    %s    %d\n", forcefield.identity[a].c_str(), count_atom_a);
-	}
+    }
     fprintf(outputfile, "\n    Tranformation matrix:\n");
-	for (int i=0; i<3; i++) {
+    for (int i=0; i<3; i++) {
         fprintf(outputfile, "    ");
-		for (int j=0; j<3; j++){
+        for (int j=0; j<3; j++){
             fprintf(outputfile, " %f " , framework.t_matrix[i][j]);
-		}
+        }
         fprintf(outputfile, "\n");
-	}
+    }
 
-	//
-	// Forcefield information
-	//
-	fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
-	fprintf(outputfile, "    %s epsilon (K) = %f, sigma (A) = %f\n", parameters.adsorbate.c_str(), parameters.epsilon_guest, parameters.sigma_guest);
+    //
+    // Forcefield information
+    //
+    fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
+    fprintf(outputfile, "    %s epsilon (K) = %f, sigma (A) = %f\n", parameters.adsorbate.c_str(), parameters.epsilon_guest, parameters.sigma_guest);
     fprintf(outputfile, "    For LJ cutoff %f A, unit cell replication factors: %d %d %d\n", sqrt(parameters.r_cutoff_squared),
-    		        parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
+                    parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
     fprintf(outputfile, "    %s-XX interactions present:\n    XX    epsilon(K)    sigma(A)\n", parameters.adsorbate.c_str());
     vector<string> printed_these;
     int N_interactions = 0; // keep track of which interaction we printed
@@ -189,15 +189,15 @@ void WriteSettingsToOutputfile(FILE * outputfile,
 }
 
 void WriteSettingsToOutputfile(FILE * outputfile,
-		GCMCParameters parameters,
-		Framework framework,
-		Forcefield forcefield,
+        GCMCParameters parameters,
+        Framework framework,
+        Forcefield forcefield,
         GridInfo grid_info) 
 {
     //
-	// Write date
-	//
-	time_t t = time(0); // get time now
+    // Write date
+    //
+    time_t t = time(0); // get time now
     struct tm * now = localtime(&t);
     fprintf(outputfile, "date: %d-%d-%d\n\n", (now->tm_year + 1900), (now->tm_mon + 1), now->tm_mday);
 
@@ -215,40 +215,40 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "Structure: %s\n", framework.name.c_str());
     fprintf(outputfile, "    Crystal density (kg/m3): %f\n", framework.density);
     fprintf(outputfile, "    a = %f A; b = %f A; c = %f A\n    alpha = %f, beta = %f, gamma = %f\n",
-    		framework.a, framework.b, framework.c,
-    		framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
+            framework.a, framework.b, framework.c,
+            framework.alpha / M_PI * 180.0, framework.beta / M_PI * 180.0, framework.gamma / M_PI * 180.0);
     fprintf(outputfile, "    Atoms in framework: %d\n", framework.noatoms);
     fprintf(outputfile, "    Atom    # in framework\n");
-	for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
-		int count_atom_a = 0;
-		for (int k = 0; k < framework.noatoms; k++) {
-			if (framework.identity[k] == forcefield.identity[a])
-				count_atom_a += 1;
-		}
-		if (count_atom_a != 0)
+    for (int a = 0 ; a < forcefield.numinteractions; a++) { // for every atom in force field, look for it in framework
+        int count_atom_a = 0;
+        for (int k = 0; k < framework.noatoms; k++) {
+            if (framework.identity[k] == forcefield.identity[a])
+                count_atom_a += 1;
+        }
+        if (count_atom_a != 0)
             fprintf(outputfile, "    %s    %d\n", forcefield.identity[a].c_str(), count_atom_a);
-	}
+    }
     fprintf(outputfile, "\n    Tranformation matrix:\n");
-	for (int i=0; i<3; i++) {
+    for (int i=0; i<3; i++) {
         fprintf(outputfile, "    ");
-		for (int j=0; j<3; j++){
+        for (int j=0; j<3; j++){
             fprintf(outputfile, " %f " , framework.t_matrix[i][j]);
-		}
+        }
         fprintf(outputfile, "\n");
-	}
+    }
     fprintf(outputfile, "\n    Inverse tranformation matrix:\n");
-	for (int i=0; i<3; i++) {
+    for (int i=0; i<3; i++) {
         fprintf(outputfile, "    ");
-		for (int j=0; j<3; j++){
+        for (int j=0; j<3; j++){
             fprintf(outputfile, " %f " , framework.inv_t_matrix[i][j]);
-		}
+        }
         fprintf(outputfile, "\n");
-	}
+    }
 
-	//
-	// Forcefield information
-	//
-	fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
+    //
+    // Forcefield information
+    //
+    fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
     for (int i = 0; i < parameters.numadsorbates; i ++)
         fprintf(outputfile, "    %s-%s: epsilon = %f K, sigma = %f A\n", parameters.adsorbate[i].c_str(), parameters.adsorbate[i].c_str(), parameters.epsilon_matrix[i][i], sqrt(parameters.sigma_squared_matrix[i][i]));
     if (parameters.numadsorbates == 2)
@@ -257,7 +257,7 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     //
     // GCMC simulation settings
     //
-	fprintf(outputfile, "\nGCMC settings\n");
+    fprintf(outputfile, "\nGCMC settings\n");
     fprintf(outputfile, "    Delta step for moves (A) = %f\n", parameters.delta);
     fprintf(outputfile, "    Total # Markov chain moves: %d\n", parameters.numtrials);
     fprintf(outputfile, "    Markov chain move sample frequency:  %d\n", parameters.samplefrequency);
@@ -271,7 +271,7 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     // Grid info
     //
     fprintf(outputfile, "\nGrid: %d by %d by %d points. Total grid points = %d\n",
-    		grid_info.N_x, grid_info.N_y, grid_info.N_z, grid_info.numtotalpts);
+            grid_info.N_x, grid_info.N_y, grid_info.N_z, grid_info.numtotalpts);
     double da = framework.a / (grid_info.N_x - 1); // actual grid spacing
     double db = framework.b / (grid_info.N_y - 1);
     double dc = framework.c / (grid_info.N_z - 1);

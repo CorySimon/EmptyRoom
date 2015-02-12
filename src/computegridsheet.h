@@ -8,21 +8,21 @@
 #include<assert.h>
 using namespace std;
 #include<string>
-#include<cstdlib> // for "exit"
+#include<cstdlib>  // for "exit"
 #include<vector>
 #include <limits>
 #include <complex>
 
 
-#ifndef COMPUTEGRIDSHEET_H_
-#define COMPUTEGRIDSHEET_H_
+#ifndef SRC_COMPUTEGRIDSHEET_H_
+#define SRC_COMPUTEGRIDSHEET_H_
 
 #define min_r .000000000001  // don't want to divide by zero...
 
 inline __device__ void DeviceFractionalToCartesian(double t_matrix[][3],
-		double x_f, double y_f, double z_f,
-		double & x, double & y, double & z)
-{ // compute Cartesian coordinates from fractional
+        double x_f, double y_f, double z_f,
+        double & x, double & y, double & z) {
+	// compute Cartesian coordinates from fractional
     x = t_matrix[0][0] * x_f + t_matrix[0][1] * y_f + t_matrix[0][2] * z_f;
     y = t_matrix[1][0] * x_f + t_matrix[1][1] * y_f + t_matrix[1][2] * z_f;
     z = t_matrix[2][0] * x_f + t_matrix[2][1] * y_f + t_matrix[2][2] * z_f;
@@ -34,19 +34,19 @@ __global__ void ComputeGridSheet(
      double * zy_energies,
      FrameworkParticle * framework_atoms,
      GridParameters parameters,
-     double x_f)
-{
-    double energy = 0.0; // each thread computes an energy at a particular point
-    int z_index = threadIdx.x + blockIdx.x * blockDim.x; // which z point are we working on?
-    int y_index = threadIdx.y + blockIdx.y * blockDim.y; // which y point are we working on?
+     double x_f) {
+	// compute energy on a sheet of grid points.
+    double energy = 0.0;  // each thread computes an energy at a particular point
+    int z_index = threadIdx.x + blockIdx.x * blockDim.x;  // which z point are we working on?
+    int y_index = threadIdx.y + blockIdx.y * blockDim.y;  // which y point are we working on?
 
     // if this thread does not have an assigned z or y point, do nothing.
     if ((z_index > (parameters.N_z - 1)) || (y_index > (parameters.N_y - 1)))
         return;
 
     // which fractional coordinate z_f and y_f is this thread responsible for?
-    double z_f = z_f_gridpoints[z_index]; // local copy of z_f
-    double y_f = y_f_gridpoints[y_index]; // local copy of y_f
+    double z_f = z_f_gridpoints[z_index];  // local copy of z_f
+    double y_f = y_f_gridpoints[y_index];  // local copy of y_f
 
     // set up Carteisan coordinates for insertion point and framework
     double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
@@ -57,7 +57,7 @@ __global__ void ComputeGridSheet(
         for (int j = -parameters.replication_factor_b; j <= parameters.replication_factor_b; j++) { // direction of y and b
             for (int k = -parameters.replication_factor_c; k <= parameters.replication_factor_c; k++) { // direction of z and c
 
-            	for (int framework_atom_index = 0; framework_atom_index < parameters.N_framework_atoms; framework_atom_index ++) {
+                for (int framework_atom_index = 0; framework_atom_index < parameters.N_framework_atoms; framework_atom_index ++) {
 
                     // fractional coordinates of framework atom under consideration
                     double x_f_framework = framework_atoms[framework_atom_index].x_f + i;
@@ -65,8 +65,8 @@ __global__ void ComputeGridSheet(
                     double z_f_framework = framework_atoms[framework_atom_index].z_f + k;
 
                     DeviceFractionalToCartesian(parameters.t_matrix,
-                    		x_f_framework, y_f_framework, z_f_framework,
-                    		x_framework, y_framework, z_framework);
+                            x_f_framework, y_f_framework, z_f_framework,
+                            x_framework, y_framework, z_framework);
 
                     double dx = x - x_framework; // distances between framework and sample point
                     double dy = y - y_framework;
@@ -96,4 +96,4 @@ __global__ void ComputeGridSheet(
          zy_energies[energy_index_here] = energy;
      }
 }
-#endif /* COMPUTEGRIDSHEET_H_ */
+#endif // SRC_COMPUTEGRIDSHEET_H_

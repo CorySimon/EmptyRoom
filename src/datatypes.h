@@ -18,7 +18,7 @@ struct PairDouble {
 }; // 2d vect
 
 struct FrameworkParticle {
-	// for fast LJ computations
+    // for fast LJ computations
     double x_f;
     double y_f;
     double z_f;
@@ -29,20 +29,20 @@ struct FrameworkParticle {
 
 struct GuestParticle { 
 // for guests particles
-	// Cartesian coords
-	double x;
-	double y;
-	double z;
-	// fractional coords
-	double x_f;
-	double y_f;
-	double z_f;
-	// adsorbate identity
-	int type;
+    // Cartesian coords
+    double x;
+    double y;
+    double z;
+    // fractional coords
+    double x_f;
+    double y_f;
+    double z_f;
+    // adsorbate identity
+    int type;
 };
 
 struct HenryParameters {
-	// These are extracted from the simulation.input file
+    // These are extracted from the simulation.input file
     int numinsertions;
     int numinsertionsperA3;
     int numinsertionsperthread;
@@ -76,7 +76,7 @@ struct HenryParameters {
 };
 
 struct GridParameters {
-	// These are extracted from the simulation.input file
+    // These are extracted from the simulation.input file
     string forcefieldname;
     bool verbose; // 0 or 1 for verbose printing
     double grid_resolution;
@@ -110,7 +110,7 @@ struct GridParameters {
 };
 
 struct GCMCParameters {
-	// These are extracted from the simulation.input file
+    // These are extracted from the simulation.input file
     string forcefieldname;
     bool pocketblocking; // 1: enabled
     bool verbose; // 0 or 1 for verbose printing
@@ -170,24 +170,24 @@ struct HenryStats
 
 struct GCMCStats
 {
-	// count trials
-	int N_insertion_trials;
-	int N_deletion_trials;
-	int N_move_trials;
-	int N_ID_swap_trials;
-	// count accepted monte carlo trials 
-	int N_insertions;
-	int N_deletions;
-	int N_moves;
-	int N_ID_swaps;
-	// count samples
-	int N_samples;
-	// average energies
-	double guest_guest_energy_avg;
-	double framework_guest_energy_avg;
-	// average number of guests
-	double N_g_avg[2];
-	double N_g2_avg[2]; // squared
+    // count trials
+    int N_insertion_trials;
+    int N_deletion_trials;
+    int N_move_trials;
+    int N_ID_swap_trials;
+    // count accepted monte carlo trials 
+    int N_insertions;
+    int N_deletions;
+    int N_moves;
+    int N_ID_swaps;
+    // count samples
+    int N_samples;
+    // average energies
+    double guest_guest_energy_avg;
+    double framework_guest_energy_avg;
+    // average number of guests
+    double N_g_avg[2];
+    double N_g2_avg[2]; // squared
 };
 
 #endif /* DATATYPES_H_ */

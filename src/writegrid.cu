@@ -42,9 +42,9 @@ double ReadTimer() {
 }
 
 void HostFractionalToCartesian(double t_matrix[][3],
-		double x_f, double y_f,double z_f,
-		double & x, double & y, double & z) {
-	// compute Cartesian coordinates from fractional
+        double x_f, double y_f,double z_f,
+        double & x, double & y, double & z) {
+    // compute Cartesian coordinates from fractional
     x = t_matrix[0][0] * x_f + t_matrix[0][1] * y_f + t_matrix[0][2] * z_f;
     y = t_matrix[1][0] * x_f + t_matrix[1][1] * y_f + t_matrix[1][2] * z_f;
     z = t_matrix[2][0] * x_f + t_matrix[2][1] * y_f + t_matrix[2][2] * z_f;
@@ -52,12 +52,12 @@ void HostFractionalToCartesian(double t_matrix[][3],
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-    	printf("Run as:\n./writegrid structure_name AdsorbateID\n");
-    	exit(EXIT_FAILURE);
+        printf("Run as:\n./writegrid structure_name AdsorbateID\n");
+        exit(EXIT_FAILURE);
     }
-	//
-	//  Import settings
-	//
+    //
+    //  Import settings
+    //
     GridParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
@@ -126,98 +126,98 @@ int main(int argc, char *argv[]) {
     if (parameters.verbose) printf("Wrote info to outputfile\n");
 
     //
-	// PREPARE GRID FILE
-	//
-	FILE * gridfile;
-	char gridfilename[256] = "data/grids/";
-	strcat(gridfilename, framework.name.c_str());
-	strcat(gridfilename,"_"); strcat(gridfilename, parameters.adsorbate.c_str());
-	strcat(gridfilename,"_"); strcat(gridfilename, forcefield.name.c_str());
-	if (parameters.gridoutputformat == "txt") {  // format I  made up for Henry coefficient and GCMC calcs
-		gridfile = fopen(strcat(gridfilename, ".txt"), "w");
-		fprintf(gridfile, "%d %d %d  = (N_x,N_y,N_z) grid points (grid is in fractional coords). Endpoints included.\n", N_x, N_y, N_z);
-	}
-	else if (parameters.gridoutputformat == "cube") // for visualization with VisIt
-	{
-		gridfile = fopen(strcat(gridfilename, ".cube"), "w");
-		fprintf(gridfile, "\nThis is a grid file.\n");
-		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-			  framework.noatoms, 0.0, 0.0, 0.0); // give number of atoms
-		// give little vectors that form a volume element
-		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-			  N_x, framework.t_matrix[0][0] / (N_x - 1), 0.0, 0.0);
-		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-			  N_y, framework.t_matrix[0][1]/ (N_y - 1), framework.t_matrix[1][1] / (N_y - 1), 0.0);
-		fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-			  N_z, framework.t_matrix[0][2] / (N_z - 1), framework.t_matrix[1][2] / (N_z - 1), framework.t_matrix[2][2] / (N_z - 1));
+    // PREPARE GRID FILE
+    //
+    FILE * gridfile;
+    char gridfilename[256] = "data/grids/";
+    strcat(gridfilename, framework.name.c_str());
+    strcat(gridfilename,"_"); strcat(gridfilename, parameters.adsorbate.c_str());
+    strcat(gridfilename,"_"); strcat(gridfilename, forcefield.name.c_str());
+    if (parameters.gridoutputformat == "txt") {  // format I  made up for Henry coefficient and GCMC calcs
+        gridfile = fopen(strcat(gridfilename, ".txt"), "w");
+        fprintf(gridfile, "%d %d %d  = (N_x,N_y,N_z) grid points (grid is in fractional coords). Endpoints included.\n", N_x, N_y, N_z);
+    }
+    else if (parameters.gridoutputformat == "cube") // for visualization with VisIt
+    {
+        gridfile = fopen(strcat(gridfilename, ".cube"), "w");
+        fprintf(gridfile, "\nThis is a grid file.\n");
+        fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+              framework.noatoms, 0.0, 0.0, 0.0); // give number of atoms
+        // give little vectors that form a volume element
+        fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+              N_x, framework.t_matrix[0][0] / (N_x - 1), 0.0, 0.0);
+        fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+              N_y, framework.t_matrix[0][1]/ (N_y - 1), framework.t_matrix[1][1] / (N_y - 1), 0.0);
+        fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
+              N_z, framework.t_matrix[0][2] / (N_z - 1), framework.t_matrix[1][2] / (N_z - 1), framework.t_matrix[2][2] / (N_z - 1));
 
-		// write atoms to grid file
-		double x, y, z;
-	  for (int i = 0; i < framework.noatoms; i++) {
-		  double atomic_mass = 1.0;
-		  int atomic_number = 1;
-		  // TODO get atomic numbers and atomic masses, for now just say they are all H ha ha
-		  HostFractionalToCartesian(framework.t_matrix, framework_atoms[i].x_f, framework_atoms[i].y_f, framework_atoms[i].z_f , x, y, z);
-		  fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf % 13.6lf\n", atomic_number, atomic_mass, x, y, z);
-	  }
-	  fprintf(gridfile," 1    1\n");
-	}
-	else {
-		printf("Grid output format must be txt or cube\n");
-		exit(EXIT_FAILURE);
-	}
-	if (parameters.verbose) printf("Initialized grid file\n");
+        // write atoms to grid file
+        double x, y, z;
+      for (int i = 0; i < framework.noatoms; i++) {
+          double atomic_mass = 1.0;
+          int atomic_number = 1;
+          // TODO get atomic numbers and atomic masses, for now just say they are all H ha ha
+          HostFractionalToCartesian(framework.t_matrix, framework_atoms[i].x_f, framework_atoms[i].y_f, framework_atoms[i].z_f , x, y, z);
+          fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf % 13.6lf\n", atomic_number, atomic_mass, x, y, z);
+      }
+      fprintf(gridfile," 1    1\n");
+    }
+    else {
+        printf("Grid output format must be txt or cube\n");
+        exit(EXIT_FAILURE);
+    }
+    if (parameters.verbose) printf("Initialized grid file\n");
 
-	//
-	// Parallelization strategy: pass sheets of the grid to the GPU at a time, sheets are defind by x = constant
-	//
-	// energies at zy grid sheet. entry k+j*N_z is the energy at point z=k*dz, y = j*dy
-	double * h_zy_energies = (double *) malloc(N_z * N_y * sizeof(double));
+    //
+    // Parallelization strategy: pass sheets of the grid to the GPU at a time, sheets are defind by x = constant
+    //
+    // energies at zy grid sheet. entry k+j*N_z is the energy at point z=k*dz, y = j*dy
+    double * h_zy_energies = (double *) malloc(N_z * N_y * sizeof(double));
 
-	//
-	//  Move data to GPU device; "d_" indicates this is data for the device
-	//
-	// Initialize memory for zy_energies on device, to be called and stored bck to zy_energies later
-	double * d_zy_energies;
-	CUDA_CALL(cudaMalloc((void **) & d_zy_energies, N_z * N_y * sizeof(double)));
-	// Copy framework_atoms to device. All blocks share this.
-	FrameworkParticle * d_framework_atoms;
-	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
-	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
-	fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(FrameworkParticle) / (1024.0 * 1024.0));
-	// copy z_f and y_f grid points to device. The parallelization strategy is to pass sheets of x = constant, so this is not needed on the device.
-	double * d_z_f_gridpoints;
-	double * d_y_f_gridpoints;
-	CUDA_CALL(cudaMalloc((void **) & d_z_f_gridpoints, N_z * sizeof(double)));
-	CUDA_CALL(cudaMalloc((void **) & d_y_f_gridpoints, N_y * sizeof(double)));
-	CUDA_CALL(cudaMemcpy(d_z_f_gridpoints, z_f_gridpoints, N_z * sizeof(double), cudaMemcpyHostToDevice));
-	CUDA_CALL(cudaMemcpy(d_y_f_gridpoints, y_f_gridpoints, N_y * sizeof(double), cudaMemcpyHostToDevice));
-	fprintf(outputfile, "    Size of grid sheet = %f MB\n", N_z * N_y * sizeof(double) / (1024.0 * 1024.0));
-	if (parameters.verbose) printf("Copied framework_atoms, z_f/y_f grid points, and allocated zy_energies to GPU device\n");
+    //
+    //  Move data to GPU device; "d_" indicates this is data for the device
+    //
+    // Initialize memory for zy_energies on device, to be called and stored bck to zy_energies later
+    double * d_zy_energies;
+    CUDA_CALL(cudaMalloc((void **) & d_zy_energies, N_z * N_y * sizeof(double)));
+    // Copy framework_atoms to device. All blocks share this.
+    FrameworkParticle * d_framework_atoms;
+    CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
+    CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
+    fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(FrameworkParticle) / (1024.0 * 1024.0));
+    // copy z_f and y_f grid points to device. The parallelization strategy is to pass sheets of x = constant, so this is not needed on the device.
+    double * d_z_f_gridpoints;
+    double * d_y_f_gridpoints;
+    CUDA_CALL(cudaMalloc((void **) & d_z_f_gridpoints, N_z * sizeof(double)));
+    CUDA_CALL(cudaMalloc((void **) & d_y_f_gridpoints, N_y * sizeof(double)));
+    CUDA_CALL(cudaMemcpy(d_z_f_gridpoints, z_f_gridpoints, N_z * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(d_y_f_gridpoints, y_f_gridpoints, N_y * sizeof(double), cudaMemcpyHostToDevice));
+    fprintf(outputfile, "    Size of grid sheet = %f MB\n", N_z * N_y * sizeof(double) / (1024.0 * 1024.0));
+    if (parameters.verbose) printf("Copied framework_atoms, z_f/y_f grid points, and allocated zy_energies to GPU device\n");
 
-	//
-	// Write the grid
-	//
+    //
+    // Write the grid
+    //
     fprintf(outputfile, "    A block is %d by %d threads.\n", SQRT_N_THREADS, SQRT_N_THREADS);
     dim3 dimBlock(SQRT_N_THREADS, SQRT_N_THREADS); // size of block. making 2D thread block
     dim3 dimGrid(N_z / SQRT_N_THREADS + 1, N_y / SQRT_N_THREADS + 1);
-	double t0 = ReadTimer();
-	if (parameters.verbose) printf("Starting loop to write grid...\n# x-grid points: %d\n", N_x);
+    double t0 = ReadTimer();
+    if (parameters.verbose) printf("Starting loop to write grid...\n# x-grid points: %d\n", N_x);
 
-	for (int i=0; i<3; i++) {
-		for (int j=0; j<3; j++){
-			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
-		}
-	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<3; j++){
+            parameters.t_matrix[i][j] = framework.t_matrix[i][j];
+        }
+    }// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
 
-	int count_grid_pts = 0;
+    int count_grid_pts = 0;
     for (int i = 0; i < N_x; i++) {
         ComputeGridSheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
-        		d_y_f_gridpoints,
-        		d_zy_energies,
-        		d_framework_atoms,
-        		parameters,
-        		x_f_gridpoints[i]);
+                d_y_f_gridpoints,
+                d_zy_energies,
+                d_framework_atoms,
+                parameters,
+                x_f_gridpoints[i]);
         CUDA_CALL( cudaPeekAtLastError() );
         CUDA_CALL( cudaDeviceSynchronize() );
         cudaDeviceSynchronize();
@@ -263,13 +263,13 @@ int main(int argc, char *argv[]) {
     //
     // Free memory, close files
     //
-	cudaFree(d_framework_atoms);
-	cudaFree(d_zy_energies);
-	cudaFree(d_z_f_gridpoints);
-	cudaFree(d_y_f_gridpoints);
-	free(framework_atoms);
+    cudaFree(d_framework_atoms);
+    cudaFree(d_zy_energies);
+    cudaFree(d_z_f_gridpoints);
+    cudaFree(d_y_f_gridpoints);
+    free(framework_atoms);
     free(x_f_gridpoints); free(y_f_gridpoints); free(z_f_gridpoints);
-	fclose(outputfile); fclose(gridfile);
+    fclose(outputfile); fclose(gridfile);
 
 }
 

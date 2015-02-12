@@ -49,16 +49,16 @@ double GetAdsorbateMW(string adsorbate) {
 }
 
 void ReadSimulationInputFile(GridParameters & parameters) {
-	// Read simulation.input into parameters.
-	string siminputfilename = "simulation.input";
-	ifstream simfile(siminputfilename.c_str());
-	if (simfile.fail())
-	{
-		printf("Simulation.input failed to open!\n");
-		exit(EXIT_FAILURE);
-	}
+    // Read simulation.input into parameters.
+    string siminputfilename = "simulation.input";
+    ifstream simfile(siminputfilename.c_str());
+    if (simfile.fail())
+    {
+        printf("Simulation.input failed to open!\n");
+        exit(EXIT_FAILURE);
+    }
 
-	// Initialize
+    // Initialize
     parameters.forcefieldname = "None";
     parameters.verbose = false;
     parameters.grid_resolution = -1.0;
@@ -107,16 +107,16 @@ void ReadSimulationInputFile(GridParameters & parameters) {
 }
 
 void ReadSimulationInputFile(HenryParameters & parameters) {
-	// Read simulation.input into parameters. 
-	string siminputfilename = "simulation.input";
-	ifstream simfile(siminputfilename.c_str());
-	if (simfile.fail())
-	{
-		printf("Simulation.input failed to open!\n");
-		exit(EXIT_FAILURE);
-	}
+    // Read simulation.input into parameters. 
+    string siminputfilename = "simulation.input";
+    ifstream simfile(siminputfilename.c_str());
+    if (simfile.fail())
+    {
+        printf("Simulation.input failed to open!\n");
+        exit(EXIT_FAILURE);
+    }
 
-	// Initialize
+    // Initialize
     parameters.forcefieldname = "None";
     parameters.verbose = false;
     parameters.r_cutoff_squared = 12.5 * 12.5;
@@ -156,16 +156,16 @@ void ReadSimulationInputFile(HenryParameters & parameters) {
 }
 
 void ReadSimulationInputFile(GCMCParameters & parameters) {
-	// Read simulation.input into parameters. bool gcmc is true if this is gcmc
-	string siminputfilename = "simulation.input";
-	ifstream simfile(siminputfilename.c_str());
-	if (simfile.fail())
-	{
-		printf("Simulation.input failed to open!\n");
-		exit(EXIT_FAILURE);
-	}
+    // Read simulation.input into parameters. bool gcmc is true if this is gcmc
+    string siminputfilename = "simulation.input";
+    ifstream simfile(siminputfilename.c_str());
+    if (simfile.fail())
+    {
+        printf("Simulation.input failed to open!\n");
+        exit(EXIT_FAILURE);
+    }
 
-	// Initialize
+    // Initialize
     parameters.forcefieldname = "None";
     parameters.pocketblocking = false;
     parameters.verbose = false;
@@ -241,55 +241,55 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
 }
 
 TripleInt ReadUnitCellReplicationFile(string frameworkname, string once_or_twice) {
-	// read unit cell replication factors from unit cell rep file
+    // read unit cell replication factors from unit cell rep file
     // once_or_twice indicates cell needs to be twice the size of rc or once
     TripleInt uc_dims;
 
-	uc_dims.arg1 = -1; // initialize
+    uc_dims.arg1 = -1; // initialize
     uc_dims.arg2 = -1;
-	uc_dims.arg3 = -1;
-	string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
-	ifstream ucfile(uc_filename.c_str());
-	if (ucfile.fail()) {
-		printf("unit cell replication factor file not found in data/uc_replications/$frameworkname_%s.uc\n", once_or_twice.c_str());
-		exit(EXIT_FAILURE);
-	}
+    uc_dims.arg3 = -1;
+    string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
+    ifstream ucfile(uc_filename.c_str());
+    if (ucfile.fail()) {
+        printf("unit cell replication factor file not found in data/uc_replications/$frameworkname_%s.uc\n", once_or_twice.c_str());
+        exit(EXIT_FAILURE);
+    }
 
-	if ( !(ucfile >> uc_dims.arg1)) {
-		printf("Problem reading UC file");
-		exit(EXIT_FAILURE);
-	}
-	if ( !(ucfile >> uc_dims.arg2)) {
-		printf("Problem reading UC file");
-		exit(EXIT_FAILURE);
-	}
-	if ( !(ucfile >> uc_dims.arg3)) {
-		printf("Problem reading UC file");
-		exit(EXIT_FAILURE);
-	}
+    if ( !(ucfile >> uc_dims.arg1)) {
+        printf("Problem reading UC file");
+        exit(EXIT_FAILURE);
+    }
+    if ( !(ucfile >> uc_dims.arg2)) {
+        printf("Problem reading UC file");
+        exit(EXIT_FAILURE);
+    }
+    if ( !(ucfile >> uc_dims.arg3)) {
+        printf("Problem reading UC file");
+        exit(EXIT_FAILURE);
+    }
 
-	if (uc_dims.arg1 == -1) printf("Error, problem reading unit cell replication file");
+    if (uc_dims.arg1 == -1) printf("Error, problem reading unit cell replication file");
     
     return uc_dims;
 }
 
 PairDouble GrabGuestForceFieldParams(Forcefield forcefield, string adsorbate) {
-	// searches through Forcefield object to get LJ params for adsorbate
+    // searches through Forcefield object to get LJ params for adsorbate
     PairDouble eps_sig; // [epsilon, sigma] vector
-	bool found_adsorbate = false;
-	for (int i =0; i < forcefield.numinteractions; i++) {
-		if (forcefield.identity[i] == adsorbate) {
-			found_adsorbate = true;
-			eps_sig.arg1 = forcefield.epsilon[i];
-			eps_sig.arg2 = forcefield.sigma[i];
-			break;
-		}
-	}
+    bool found_adsorbate = false;
+    for (int i =0; i < forcefield.numinteractions; i++) {
+        if (forcefield.identity[i] == adsorbate) {
+            found_adsorbate = true;
+            eps_sig.arg1 = forcefield.epsilon[i];
+            eps_sig.arg2 = forcefield.sigma[i];
+            break;
+        }
+    }
 
-	if (! found_adsorbate) {
-		printf("Could not find adsorbate %s in forcefield file %s", adsorbate.c_str(), forcefield.name.c_str());
-		exit(EXIT_FAILURE);
-	}
+    if (! found_adsorbate) {
+        printf("Could not find adsorbate %s in forcefield file %s", adsorbate.c_str(), forcefield.name.c_str());
+        exit(EXIT_FAILURE);
+    }
     return eps_sig;
 }
 

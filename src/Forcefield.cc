@@ -13,11 +13,11 @@
 #include <sstream>
 
 Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
-	// load forcefield
+    // load forcefield
     name = forcefield;
     ifstream forcefieldfile(("data/forcefields/" + forcefield + ".def").c_str());
     if (forcefieldfile.fail()) {
-    	printf("Forcefield file %s did not load.\n", ("data/forcefields/" + forcefield + ".def").c_str());
+        printf("Forcefield file %s did not load.\n", ("data/forcefields/" + forcefield + ".def").c_str());
         exit(EXIT_FAILURE);
     }
 
@@ -46,8 +46,8 @@ Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
     // if verbose, print result
     if (verbose) {
         printf("Atom epsilon(K) sigma(A)\n");
-    	for (int k = 0; k < numinteractions; k++) {
-        	printf("%s %f %f\n", identity[k].c_str(), epsilon[k], sigma[k]);
+        for (int k = 0; k < numinteractions; k++) {
+            printf("%s %f %f\n", identity[k].c_str(), epsilon[k], sigma[k]);
         }
     }
 

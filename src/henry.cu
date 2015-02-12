@@ -26,7 +26,7 @@ using namespace std;
 
 #define CURAND_CALL(x) do { if((x)!=CURAND_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
-		    return EXIT_FAILURE;}} while(0)
+            return EXIT_FAILURE;}} while(0)
 
 double ReadTimer() {
     static bool initialized = false;
@@ -44,12 +44,12 @@ double ReadTimer() {
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
-    	printf("Run as:\n./henry structure_name AdsorbateID\n");
-    	exit(EXIT_FAILURE);
+        printf("Run as:\n./henry structure_name AdsorbateID\n");
+        exit(EXIT_FAILURE);
     }
-	//
-	//  Import settings
-	//
+    //
+    //  Import settings
+    //
     HenryParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
@@ -69,11 +69,11 @@ int main(int argc, char *argv[])
     Forcefield forcefield(parameters.forcefieldname);
     if (parameters.verbose) printf("Constructed Forcefield object\n");
     Framework framework(parameters.frameworkname);
-	for (int i=0; i<3; i++) {
-		for (int j=0; j<3; j++){
-			parameters.t_matrix[i][j] = framework.t_matrix[i][j];
-		}
-	}// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<3; j++){
+            parameters.t_matrix[i][j] = framework.t_matrix[i][j];
+        }
+    }// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
     parameters.N_framework_atoms = framework.noatoms;
     if (parameters.verbose) printf("Constructed Framework object\n");
 
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     if (parameters.verbose) printf("Initialized framework_atoms array in host\n");
 
     parameters.num_blocks = NUM_BLOCKS; parameters.num_threads = NUM_THREADS;
-	parameters.numinsertionsperthread = parameters.numinsertions / (NUM_BLOCKS * NUM_THREADS) + 1;
+    parameters.numinsertionsperthread = parameters.numinsertions / (NUM_BLOCKS * NUM_THREADS) + 1;
     if (parameters.verbose) printf("# blocks = %d, # threads = %d\n", parameters.num_blocks, parameters.num_threads);
 
     //
@@ -106,9 +106,9 @@ int main(int argc, char *argv[])
     WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, framework_atoms);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
   
-	//
-	// Set up random number generator on device
-	//
+    //
+    // Set up random number generator on device
+    //
     curandStateMtgp32 *devMTGPStates;
     mtgp32_kernel_params *devKernelParams;
       
@@ -126,51 +126,51 @@ int main(int argc, char *argv[])
     CURAND_CALL(curandMakeMTGP32KernelState(devMTGPStates, 
             mtgp32dc_params_fast_11213, devKernelParams, NUM_BLOCKS, 1234));
 
-	//
+    //
     //  Move data to GPU device
     //
-	HenryStats * d_statistics; // collect statistics from device block
+    HenryStats * d_statistics; // collect statistics from device block
     CUDA_CALL(cudaMalloc((void **) & d_statistics, sizeof(HenryStats) * NUM_BLOCKS)); 
-	FrameworkParticle * d_framework_atoms;
-	CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
-	CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
-//	fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(Particle_f) / (1024.0 * 1024.0));
-	
+    FrameworkParticle * d_framework_atoms;
+    CUDA_CALL(cudaMalloc((void **) & d_framework_atoms, framework.noatoms * sizeof(FrameworkParticle)));
+    CUDA_CALL(cudaMemcpy(d_framework_atoms, framework_atoms, framework.noatoms * sizeof(FrameworkParticle), cudaMemcpyHostToDevice));
+//  fprintf(outputfile, "    Size of framework atoms array = %f MB\n", framework.noatoms * sizeof(Particle_f) / (1024.0 * 1024.0));
+    
     //
-	//  RUN WIDOM INSERTIONS
-	//
-	double start_of_sim_time=ReadTimer();
-	doHenry <<< NUM_BLOCKS, NUM_THREADS>>> (devMTGPStates, parameters, d_statistics, d_framework_atoms);
+    //  RUN WIDOM INSERTIONS
+    //
+    double start_of_sim_time=ReadTimer();
+    doHenry <<< NUM_BLOCKS, NUM_THREADS>>> (devMTGPStates, parameters, d_statistics, d_framework_atoms);
  
-	cudaDeviceSynchronize();
-	
+    cudaDeviceSynchronize();
+    
     // get statistics
-	HenryStats * h_statistics= (HenryStats *) malloc(NUM_BLOCKS * sizeof(HenryStats));
+    HenryStats * h_statistics= (HenryStats *) malloc(NUM_BLOCKS * sizeof(HenryStats));
     CUDA_CALL(cudaMemcpy(h_statistics, d_statistics, sizeof(HenryStats) * NUM_BLOCKS,cudaMemcpyDeviceToHost));
- 	
+    
     double sim_time = ReadTimer() - start_of_sim_time;
    
     fprintf(outputfile, "\nHenry simulation results\n");
     fprintf(outputfile, "    Simulation time: %f s\n", sim_time);
-	cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     if (parameters.verbose) printf("Copied data back from device to host\n");
 
-	double henry_coeff = 0.0;
-	double canonical_sum = 0.0;
-	double weighted_energy_sum = 0.0;
+    double henry_coeff = 0.0;
+    double canonical_sum = 0.0;
+    double weighted_energy_sum = 0.0;
 
-	for (int i = 0; i < NUM_BLOCKS; i ++) {
-		canonical_sum += h_statistics[i].canonical_sum;
-		weighted_energy_sum += h_statistics[i].weighted_energy_sum;
-		if (parameters.verbose) 
+    for (int i = 0; i < NUM_BLOCKS; i ++) {
+        canonical_sum += h_statistics[i].canonical_sum;
+        weighted_energy_sum += h_statistics[i].weighted_energy_sum;
+        if (parameters.verbose) 
             printf("Block %d: canonical sum = %f\n", i, h_statistics[i].canonical_sum);
-	}
-	
-	double ensemble_average_energy = weighted_energy_sum / canonical_sum;
-	henry_coeff = canonical_sum / (NUM_THREADS * NUM_BLOCKS * parameters.numinsertionsperthread) / parameters.T / 8.314;
-	fprintf(outputfile,  "    Temperature (K): %f\n", parameters.T);
-	fprintf(outputfile,  "    <energy> (kJ/mol): %f\n", ensemble_average_energy * 8.314 /1000.0);
-	fprintf(outputfile,  "    <energy> (K): %f\n", ensemble_average_energy);
-	fprintf(outputfile,  "    Henry coefficient (mol/(kg-Pa)): %e\n", henry_coeff / framework.density);
-	fprintf(outputfile,  "    Henry coefficient (mol/(m3-Pa)): %e\n", henry_coeff);
+    }
+    
+    double ensemble_average_energy = weighted_energy_sum / canonical_sum;
+    henry_coeff = canonical_sum / (NUM_THREADS * NUM_BLOCKS * parameters.numinsertionsperthread) / parameters.T / 8.314;
+    fprintf(outputfile,  "    Temperature (K): %f\n", parameters.T);
+    fprintf(outputfile,  "    <energy> (kJ/mol): %f\n", ensemble_average_energy * 8.314 /1000.0);
+    fprintf(outputfile,  "    <energy> (K): %f\n", ensemble_average_energy);
+    fprintf(outputfile,  "    Henry coefficient (mol/(kg-Pa)): %e\n", henry_coeff / framework.density);
+    fprintf(outputfile,  "    Henry coefficient (mol/(m3-Pa)): %e\n", henry_coeff);
 }
