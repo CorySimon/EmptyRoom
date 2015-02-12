@@ -1,7 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
 
- # set(CMAKE_BINARY_DIR "../")
-
 # writegrid project (requires cuda)
 project (writegrid)
 find_package(CUDA)
@@ -17,3 +15,5 @@ project (gcmc)
 SET(CMAKE_CXX_FLAGS "-std=c++11")
 add_executable(gcmc gcmc.cc Framework.cc Forcefield.cc pocketblocking.cc)
 
+# put binaries one directory up
+INSTALL(TARGETS writegrid henry gcmc DESTINATION ${writegrid_SOURCE_DIR}/..)
