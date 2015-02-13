@@ -4,7 +4,7 @@ To compile, from the main directory `EmptyRoom`:
 
     mkdir _build
     cd _build
-    cmake ../src
+    cmake ../src/
     make
     make install
 
