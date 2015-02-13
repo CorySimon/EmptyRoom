@@ -6,7 +6,6 @@
  */
 #include <cuda.h>
 #include<assert.h>
-using namespace std;
 #include<string>
 #include<cstdlib>  // for "exit"
 #include<vector>

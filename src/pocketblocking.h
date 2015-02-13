@@ -9,5 +9,5 @@
 
 int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double temperature, GCMCParameters parameters);
 
-void WriteCube(string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, GridInfo grid_info);
+void WriteCube(std::string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, GridInfo grid_info);
 #endif

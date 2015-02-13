@@ -1,7 +1,6 @@
 //
 //  GCMC code (mu, V, T) simulations.
 //
-using namespace std;
 #include <chrono>
 #include<iostream>
 #include<fstream>
@@ -293,14 +292,14 @@ int main(int argc, char *argv[])
         char gridfilename[512];
         sprintf(gridfilename, "data/grids/%s_%s_%s.txt", framework.name.c_str(), parameters.adsorbate[n_c].c_str(), forcefield.name.c_str());
 
-        ifstream gridfile(gridfilename); // input file stream
+        std::ifstream gridfile(gridfilename); // input file stream
         if (gridfile.fail()) {
             printf("Grid file %s could not be loaded...\n", gridfilename);
             exit(EXIT_FAILURE);
         }
-        string line;
+        std::string line;
         getline(gridfile, line);
-        istringstream this_line(line);
+        std::istringstream this_line(line);
         this_line >> N_x_temp >> N_y_temp >> N_z_temp;
        
         if (n_c == 0) {
@@ -323,7 +322,7 @@ int main(int argc, char *argv[])
 
         int i = 0; int j = 0;
         while(getline(gridfile,line)) {
-            istringstream this_line(line);
+            std::istringstream this_line(line);
             for (int k = 0; k < grid_info.N_z; k ++) {  // each line is a pencil of z's
                 int index_here = k + j * grid_info.N_z + i * grid_info.N_y * grid_info.N_z;
                 if (n_c == 0)
@@ -476,19 +475,19 @@ int main(int argc, char *argv[])
                 // accept, loosely, if energetically favorable
                 double acceptance_insertion = parameters.fugacity[which_type] * volume / ((N_g[which_type] + 1) * 1.3806488e7 * parameters.T) * exp(-E_insertion / parameters.T);
                 if (parameters.debugmode) {
-                    cout << "Adsorbate id list: ";
+                    std::cout << "Adsorbate id list: ";
                     for (int ad = 0 ; ad < N_g[0] ; ad++)
-                         cout << adsorbate_index_list[0][ad] << endl;
+                         std::cout << adsorbate_index_list[0][ad] << std::endl;
                     printf("\tProposal to insert at xf=%f,yf=%f,zf=%f\n.",guests[N_g_total].x_f,guests[N_g_total].y_f,guests[N_g_total].z_f);
-                    cout << "\tE_gg = " << energy_gg << endl;
-                    cout << "\tE_gf = " << energy_gf << endl;
-                    cout << "\tAcceptance prob = " << acceptance_insertion << endl;
+                    std::cout << "\tE_gg = " << energy_gg << std::endl;
+                    std::cout << "\tE_gf = " << energy_gf << std::endl;
+                    std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
                 }
                 if (rand_for_acceptance < acceptance_insertion) {  // accept insertion move
-                    if (parameters.debugmode) cout << "\tInsertion accepted. " << endl;
+                    if (parameters.debugmode) std::cout << "\tInsertion accepted. " << std::endl;
                     stats.N_insertions += 1;
                     if (energy_gf > 1e6)
-                        cout << "Insertion accepted with huge energy" << endl;
+                        std::cout << "Insertion accepted with huge energy" << std::endl;
                     // add adsorbate guests index to adsorbate_index_list
                     adsorbate_index_list[which_type][N_g[which_type]] = N_g_total;
                     N_g[which_type] += 1;
@@ -501,7 +500,7 @@ int main(int argc, char *argv[])
             //
             else if (which_move < parameters.p_exchange)
             {
-                if (parameters.debugmode) cout << "Deletion Trial." << endl;
+                if (parameters.debugmode) std::cout << "Deletion Trial." << std::endl;
 
                 stats.N_deletion_trials += 1;
                 if (N_g[which_type] > 0) {
@@ -517,7 +516,7 @@ int main(int argc, char *argv[])
                         printf("Idx delete %d, N_g %d, Ng total %d,idx delete type %d\n",idx_delete,N_g[which_type],N_g_total,idx_delete_type);
                         printf("adsorbate index list: ");
                         for (int ad = 0 ; ad < N_g[0] ; ad++)
-                         cout << adsorbate_index_list[0][ad] << endl;
+                         std::cout << adsorbate_index_list[0][ad] << std::endl;
                     }
 //                  assert(idx_delete < N_g_total);
 
@@ -536,7 +535,7 @@ int main(int argc, char *argv[])
                     double acceptance_del = (N_g[which_type] * 1.3806488e7 * parameters.T) / (parameters.fugacity[which_type] * volume) * exp(E_deletion / parameters.T);
                     if (rand_for_acceptance < acceptance_del) {
                         if (energy_gf > 1e6) {
-                            cout << "Deletion accepted with huge energy" << endl;
+                            std::cout << "Deletion accepted with huge energy" << std::endl;
                             printf("N_g = %d, energy_gg = %f, idx_delete = %d, idx_delete_type = %d, N_g1 = %d\n", N_g[0],energy_gg,idx_delete, idx_delete_type,N_g[1]);
                         }
                         stats.N_deletions += 1;
@@ -557,7 +556,7 @@ int main(int argc, char *argv[])
                         N_g_total -= 1;
                         E_gg_this_cycle -= energy_gg; E_gf_this_cycle -= energy_gf;
                         if (parameters.debugmode) {
-                            cout << "Deletion accepted with probability " << acceptance_del << endl;
+                            std::cout << "Deletion accepted with probability " << acceptance_del << std::endl;
                         }
                     }
                 }
@@ -566,7 +565,7 @@ int main(int argc, char *argv[])
             //  MC TRIAL:  MOVE
             //
             else if (which_move < parameters.p_exchange + parameters.p_move) {
-                if (parameters.debugmode) cout << "Translation Trial." << endl;
+                if (parameters.debugmode) std::cout << "Translation Trial." << std::endl;
                 stats.N_move_trials += 1;
 
                 if (N_g[which_type] > 0) {
@@ -635,9 +634,9 @@ int main(int argc, char *argv[])
                         stats.N_moves += 1; 
                         E_gg_this_cycle += energy_gg_new - energy_gg_old; E_gf_this_cycle += energy_gf_new - energy_gf_old;
                         if (energy_gf_new > 1e6) {
-                            cout << "Move accepted with huge energy" << endl;
-                            cout << "Old energy = " << energy_gf_old << endl;
-                            cout << "New energy = " << energy_gf_new << endl;
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                            std::cout << "Old energy = " << energy_gf_old << std::endl;
+                            std::cout << "New energy = " << energy_gf_new << std::endl;
                         }
                         // already overwrote coords with new coords, no need to update coords in this case
                     }
@@ -733,12 +732,12 @@ int main(int argc, char *argv[])
 
             // for debug mode
             if (parameters.debugmode == true) {
-                cout << "MC move " << cycle_counter << endl;
-                cout << "\tN_g [0]= " << N_g[0] << endl;
-                cout << "\tN_g [1]= " << N_g[1] << endl;
-                cout << "\tN_g_total = " << N_g_total << endl;
-                cout << "\tE_gg = " << E_gg_this_cycle << endl;
-                cout << "\tE_gf = " << E_gf_this_cycle << endl;
+                std::cout << "MC move " << cycle_counter << std::endl;
+                std::cout << "\tN_g [0]= " << N_g[0] << std::endl;
+                std::cout << "\tN_g [1]= " << N_g[1] << std::endl;
+                std::cout << "\tN_g_total = " << N_g_total << std::endl;
+                std::cout << "\tE_gg = " << E_gg_this_cycle << std::endl;
+                std::cout << "\tE_gf = " << E_gf_this_cycle << std::endl;
             }
 
 

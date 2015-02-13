@@ -61,10 +61,10 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "    For LJ cutoff %f A, unit cell replication factors: %d %d %d\n", sqrt(parameters.r_cutoff_squared),
                     parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
     fprintf(outputfile, "    %s-XX interactions present:\n    XX    epsilon(K)    sigma(A)\n", parameters.adsorbate.c_str());
-    vector<string> printed_these;
+    std::vector<std::string> printed_these;
     int N_interactions = 0; // keep track of which interaction we printed
     for (int i = 0; i < framework.noatoms; i++) {
-        string atom_id = framework.identity[i];
+        std::string atom_id = framework.identity[i];
         if (i == 0) {
             N_interactions++;
             printed_these.push_back(atom_id);
@@ -152,10 +152,10 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "    For LJ cutoff %f A, unit cell replication factors: %d %d %d\n", sqrt(parameters.r_cutoff_squared),
                     parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
     fprintf(outputfile, "    %s-XX interactions present:\n    XX    epsilon(K)    sigma(A)\n", parameters.adsorbate.c_str());
-    vector<string> printed_these;
+    std::vector<std::string> printed_these;
     int N_interactions = 0; // keep track of which interaction we printed
     for (int i = 0; i < framework.noatoms; i++) {
-        string atom_id = framework.identity[i];
+        std::string atom_id = framework.identity[i];
         if (i == 0) {
             N_interactions++;
             printed_these.push_back(atom_id);

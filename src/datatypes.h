@@ -46,14 +46,14 @@ struct HenryParameters {
     int numinsertions;
     int numinsertionsperA3;
     int numinsertionsperthread;
-    string forcefieldname;
+    std::string forcefieldname;
     bool verbose; // 0 or 1 for verbose printing
     double r_cutoff_squared; // cutoff for LJ potential (A), squared
     double T; // temperature (K), only needed if Feynman Hibbs is true
 
     // These are given as arguments to binary Henry
-    string frameworkname;
-    string adsorbate; // label in FF 
+    std::string frameworkname;
+    std::string adsorbate; // label in FF 
 
     // This must be read from force field object
     double epsilon_guest; double sigma_guest; // pure sigma, epsilon for adsorbate
@@ -77,18 +77,18 @@ struct HenryParameters {
 
 struct GridParameters {
     // These are extracted from the simulation.input file
-    string forcefieldname;
+    std::string forcefieldname;
     bool verbose; // 0 or 1 for verbose printing
     double grid_resolution;
-    string gridoutputformat;
+    std::string gridoutputformat;
     double r_cutoff_squared; // cutoff for LJ potential (A), squared
     bool feynmanhibbs;
     double energy_threshold; // for void fraction calc
     double T; // temperature (K), only needed if Feynman Hibbs is true
 
     // These are given as arguments to binary writegrid
-    string frameworkname;
-    string adsorbate; // label in FF for GCMC
+    std::string frameworkname;
+    std::string adsorbate; // label in FF for GCMC
 
     // This must be read from force field object
     double epsilon_guest; double sigma_guest; // pure sigma, epsilon for adsorbate
@@ -111,7 +111,7 @@ struct GridParameters {
 
 struct GCMCParameters {
     // These are extracted from the simulation.input file
-    string forcefieldname;
+    std::string forcefieldname;
     bool pocketblocking; // 1: enabled
     bool verbose; // 0 or 1 for verbose printing
     bool debugmode; // print details of each move for debugging
@@ -123,8 +123,8 @@ struct GCMCParameters {
     double p_move; double p_exchange; double p_identity_change; // probability of a move and exchange with bath(delete/insert). or identity change for dual component only
 
     // These are given as arguments to binary gcmc
-    string frameworkname;
-    string adsorbate[2]; // label in FF for GCMC
+    std::string frameworkname;
+    std::string adsorbate[2]; // label in FF for GCMC
     int numadsorbates; // number of adsorbates
     double fugacity[2];
 

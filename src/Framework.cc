@@ -10,11 +10,11 @@
 #include <sstream>
 #include "Framework.h"
 
-Framework::Framework(string structurename, bool verbose /*=false*/) {
+Framework::Framework(std::string structurename, bool verbose /*=false*/) {
     //
     // Read cssr file to import framework information
     //
-    ifstream cssr(("data/structures/" + structurename + ".cssr").c_str());
+    std::ifstream cssr(("data/structures/" + structurename + ".cssr").c_str());
     if (cssr.fail()) {
         printf("CSSR file %s failed to import!", (structurename + ".cssr").c_str());
         exit(EXIT_FAILURE);
@@ -22,10 +22,10 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
 
     name = structurename; // assign name
 
-    string line;
+    std::string line;
     // get cell dimensions on first line
     getline(cssr,line);
-    istringstream input(line);
+    std::istringstream input(line);
     input >> a >> b >> c;
 
     // get cell angles, convert to radians
@@ -52,7 +52,7 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
     for (int i = 0; i < noatoms; i++) {
         getline(cssr,line);
         input.str(line); input.clear();
-        int junk; string junk2;
+        int junk; std::string junk2;
         input >> junk >> identity[i] >> x_f[i] >> y_f[i] >> z_f[i];
         // reflect fractional coordiantes in [0,1]
         x_f[i] = fmod(x_f[i], 1.0);
@@ -63,8 +63,8 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
     //
     // Read masses.def file to import atom masses
     //
-    string massesfilename = "data/masses.def";
-    ifstream massesfile(massesfilename.c_str());
+    std::string massesfilename = "data/masses.def";
+    std::ifstream massesfile(massesfilename.c_str());
     if (massesfile.fail()) {
         printf("File %s not present.\n", massesfilename.c_str());
         exit(EXIT_FAILURE);
@@ -81,8 +81,8 @@ Framework::Framework(string structurename, bool verbose /*=false*/) {
     massesfile.clear(); massesfile.seekg(0, massesfile.beg); // go back to beginning of file
     getline(massesfile, line); //waste line
     // to be extracted from masses.def
-    vector<double> masses(n_masses);
-    vector<string> identities(n_masses);
+    std::vector<double> masses(n_masses);
+    std::vector<std::string> identities(n_masses);
     for (int i = 0; i < n_masses; i++) {
         getline(massesfile, line); // get next line
         input.str(line); input.clear();

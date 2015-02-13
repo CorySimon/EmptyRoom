@@ -9,7 +9,6 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-using namespace std;
 #include "Framework.h"
 #include "Forcefield.h"
 

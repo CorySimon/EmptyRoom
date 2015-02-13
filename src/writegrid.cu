@@ -6,7 +6,6 @@
 #include<cuda.h>
 #include <sys/time.h>
 #include <cuda_runtime.h>
-using namespace std;
 #include "datatypes.h"
 #include "readsettings.h"
 #include "Framework.h"

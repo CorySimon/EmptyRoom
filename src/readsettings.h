@@ -4,7 +4,8 @@
  *  Created on: Feb 2, 2015
  *      Author: corymsimon
  */
-using namespace std;
+#ifndef READSIMULATIONmassesfile_H_
+#define READSIMULATIONmassesfile_H_
 #include "Forcefield.h"
 #include<cstdlib>
 #include<cmath>
@@ -12,26 +13,25 @@ using namespace std;
 #include<string>
 #include <fstream>
 #include <sstream>
-#ifndef READSIMULATIONmassesfile_H_
-#define READSIMULATIONmassesfile_H_
+
 
 // assign adsorbate MW to parameters attribute
-double GetAdsorbateMW(string adsorbate) {
+double GetAdsorbateMW(std::string adsorbate) {
     // open masses.def file with atomic masses
-    string massesfilename = "data/masses.def";
-    ifstream massesfile(massesfilename.c_str());
+    std::string massesfilename = "data/masses.def";
+    std::ifstream massesfile(massesfilename.c_str());
     if (massesfile.fail()) {
         printf("Masses file data/masses.def not present!\n");
         exit(EXIT_FAILURE);
     }
 
     double adsorbatemolecularweight = -1.0;
-    string line;
+    std::string line;
     getline(massesfile, line); //waste line
-    string label; double mass;
+    std::string label; double mass;
     while (getline(massesfile, line))
     {
-        istringstream linestream(line);
+        std::istringstream linestream(line);
         linestream >> label >> mass;
         if (label == adsorbate)
         {
@@ -50,8 +50,8 @@ double GetAdsorbateMW(string adsorbate) {
 
 void ReadSimulationInputFile(GridParameters & parameters) {
     // Read simulation.input into parameters.
-    string siminputfilename = "simulation.input";
-    ifstream simfile(siminputfilename.c_str());
+    std::string siminputfilename = "simulation.input";
+    std::ifstream simfile(siminputfilename.c_str());
     if (simfile.fail())
     {
         printf("Simulation.input failed to open!\n");
@@ -69,7 +69,7 @@ void ReadSimulationInputFile(GridParameters & parameters) {
     parameters.T = -1;
     
     // grab from simulation.input
-    string word;
+    std::string word;
     while (simfile >> word) {
         if (word=="Temperature")
             simfile >> parameters.T;
@@ -108,8 +108,8 @@ void ReadSimulationInputFile(GridParameters & parameters) {
 
 void ReadSimulationInputFile(HenryParameters & parameters) {
     // Read simulation.input into parameters. 
-    string siminputfilename = "simulation.input";
-    ifstream simfile(siminputfilename.c_str());
+    std::string siminputfilename = "simulation.input";
+    std::ifstream simfile(siminputfilename.c_str());
     if (simfile.fail())
     {
         printf("Simulation.input failed to open!\n");
@@ -124,7 +124,7 @@ void ReadSimulationInputFile(HenryParameters & parameters) {
     parameters.numinsertionsperA3 = -1;
     
     // grab from simulation.input
-    string word;
+    std::string word;
     while (simfile >> word) {
         if (word=="Temperature")
             simfile >> parameters.T;
@@ -157,8 +157,8 @@ void ReadSimulationInputFile(HenryParameters & parameters) {
 
 void ReadSimulationInputFile(GCMCParameters & parameters) {
     // Read simulation.input into parameters. bool gcmc is true if this is gcmc
-    string siminputfilename = "simulation.input";
-    ifstream simfile(siminputfilename.c_str());
+    std::string siminputfilename = "simulation.input";
+    std::ifstream simfile(siminputfilename.c_str());
     if (simfile.fail())
     {
         printf("Simulation.input failed to open!\n");
@@ -179,7 +179,7 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
     parameters.writeadsorbatepositions = false;
 
     // grab from simulation.input
-    string word;
+    std::string word;
     while (simfile >> word) {
         if (word=="Temperature")
             simfile >> parameters.T;
@@ -240,7 +240,7 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
     }
 }
 
-TripleInt ReadUnitCellReplicationFile(string frameworkname, string once_or_twice) {
+TripleInt ReadUnitCellReplicationFile(std::string frameworkname, std::string once_or_twice) {
     // read unit cell replication factors from unit cell rep file
     // once_or_twice indicates cell needs to be twice the size of rc or once
     TripleInt uc_dims;
@@ -248,8 +248,8 @@ TripleInt ReadUnitCellReplicationFile(string frameworkname, string once_or_twice
     uc_dims.arg1 = -1; // initialize
     uc_dims.arg2 = -1;
     uc_dims.arg3 = -1;
-    string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
-    ifstream ucfile(uc_filename.c_str());
+    std::string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
+    std::ifstream ucfile(uc_filename.c_str());
     if (ucfile.fail()) {
         printf("unit cell replication factor file not found in data/uc_replications/$frameworkname_%s.uc\n", once_or_twice.c_str());
         exit(EXIT_FAILURE);
@@ -273,7 +273,7 @@ TripleInt ReadUnitCellReplicationFile(string frameworkname, string once_or_twice
     return uc_dims;
 }
 
-PairDouble GrabGuestForceFieldParams(Forcefield forcefield, string adsorbate) {
+PairDouble GrabGuestForceFieldParams(Forcefield forcefield, std::string adsorbate) {
     // searches through Forcefield object to get LJ params for adsorbate
     PairDouble eps_sig; // [epsilon, sigma] vector
     bool found_adsorbate = false;

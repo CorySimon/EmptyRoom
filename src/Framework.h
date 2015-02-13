@@ -6,25 +6,24 @@
  */
 #ifndef FRAMEWORK_H_
 #define FRAMEWORK_H_
-using namespace std;
 #include<string>
 #include<vector>
 
 
 class Framework {
 public:
-    Framework(string structurname, bool verbose=false); // constructor
+    Framework(std::string structurname, bool verbose=false); // constructor
 
-    string name; // name of structure
+    std::string name; // name of structure
     double a, b, c; // unit cell dimensions
     double alpha, beta, gamma; // unit cell angles
     int noatoms; // number of atoms
     // store atoms in crystal structure
-    vector<double> x_f; // fractional coord
-    vector<double> y_f; // fractional coord
-    vector<double> z_f; // fractional coord
-    vector<double> mass;
-    vector<string> identity; // identity
+    std::vector<double> x_f; // fractional coord
+    std::vector<double> y_f; // fractional coord
+    std::vector<double> z_f; // fractional coord
+    std::vector<double> mass;
+    std::vector<std::string> identity; // identity
 
     double density; // crystal density
     double volume_unitcell; // volume of unit cell (A^3)

@@ -5,22 +5,21 @@
  *  Created on: Feb 2, 2015
  *      Author: corymsimon
  */
-using namespace std;
+#ifndef FORCEFIELD_H_
+#define FORCEFIELD_H_
 #include<vector>
 #include<string>
 
-#ifndef FORCEFIELD_H_
-#define FORCEFIELD_H_
 
 class Forcefield {
 public:
-    Forcefield(string forcefield, bool verbose=false);
+    Forcefield(std::string forcefield, bool verbose=false);
 
     int numinteractions; // number of interactions defined
-    string name;
-    vector<double> epsilon; // LJ parameter units: K
-    vector<double> sigma; // LJ parameter units: A
-    vector<string> identity; // labels of atoms that correspond to framework and adsorbate objects
+    std::string name;
+    std::vector<double> epsilon; // LJ parameter units: K
+    std::vector<double> sigma; // LJ parameter units: A
+    std::vector<std::string> identity; // labels of atoms that correspond to framework and adsorbate objects
 };
 
 #endif /* FORCEFIELD_H_ */

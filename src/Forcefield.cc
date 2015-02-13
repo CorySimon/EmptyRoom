@@ -12,10 +12,10 @@
 #include<cstdlib>
 #include <sstream>
 
-Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
+Forcefield::Forcefield(std::string forcefield, bool verbose /*=false*/) {
     // load forcefield
     name = forcefield;
-    ifstream forcefieldfile(("data/forcefields/" + forcefield + ".def").c_str());
+    std::ifstream forcefieldfile(("data/forcefields/" + forcefield + ".def").c_str());
     if (forcefieldfile.fail()) {
         printf("Forcefield file %s did not load.\n", ("data/forcefields/" + forcefield + ".def").c_str());
         exit(EXIT_FAILURE);
@@ -23,7 +23,7 @@ Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
 
     // count interactions
     numinteractions = 0;
-    string line;
+    std::string line;
     getline(forcefieldfile, line); // waste a line
     while (getline(forcefieldfile, line)) numinteractions++;
 
@@ -39,8 +39,8 @@ Forcefield::Forcefield(string forcefield, bool verbose /*=false*/) {
     // extract LJ parameters
     for (int k = 0; k < numinteractions; k++) {
         getline(forcefieldfile, line);
-        istringstream stringstream(line);
-        stringstream >> identity[k] >> epsilon[k] >> sigma[k]; /// CHECK ORDER OF SIG EPS
+        std::istringstream stringstream(line);
+        stringstream >> identity[k] >> epsilon[k] >> sigma[k]; // CHECK ORDER OF SIG EPS
     }
 
     // if verbose, print result

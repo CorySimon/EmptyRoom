@@ -1,4 +1,3 @@
-using namespace std;
 #include<assert.h>
 #include<string>
 #include<cstdlib> // for "exit" and "malloc"
@@ -38,10 +37,10 @@ int X_DIR = 1; int Y_DIR = 2; int Z_DIR = 3; // positive for forward
 
 // makes channel_found true if loop was found; false if connections exhausted without finding loop.
 void recursively_navigate_connections(int segment_no, 
-                        vector<Unit_cell_id> & unit_cell_each_segment, 
+                        std::vector<Unit_cell_id> & unit_cell_each_segment, 
                         bool * segment_visit_status, 
                         bool * edge_visit_status, 
-                        vector<Connection> & connections, 
+                        std::vector<Connection> & connections, 
                         int N_segments, 
                         int N_connections, 
                         bool * channel_found)
@@ -101,8 +100,8 @@ void recursively_navigate_connections(int segment_no,
 }
 
 // we observed a connection. should we add it to the connections list, or does it already exist?
-void note_new_connection(int from_segment, int to_segment, int direction, vector<Connection> & connections) {
-    bool should_push = true; // don't push a redundant connection to the connections vector...
+void note_new_connection(int from_segment, int to_segment, int direction, std::vector<Connection> & connections) {
+    bool should_push = true; // don't push a redundant connection to the connections std::vector...
     for (int i = 0; i < connections.size(); i++) {
     // look at all present connections to see if it exists already
         if ((to_segment == connections.at(i).to) && (from_segment == connections.at(i).from)) {
@@ -158,7 +157,7 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
                 if (grid_pt_info[grid_pt.global_id].status_found == false) {
                     N_segments += 1; // we have arrived at a new segment!
                     if (parameters.debugmode) printf("\tFound a new segment\nN_segments = %d\n",N_segments);
-                    vector<Grid_id> stack_ids; // stack with IDs unknown
+                    std::vector<Grid_id> stack_ids; // stack with IDs unknown
                     stack_ids.push_back(grid_pt);
                     while (! stack_ids.empty()) {
                         // get another grid point from the stack
@@ -271,7 +270,7 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
     // store graph and the direction of their connections
     if (parameters.verbose) printf("Extracting graph representation of segments\n");
     //
-    vector<Connection> connections; // store connections across periodic boundary here
+    std::vector<Connection> connections; // store connections across periodic boundary here
     //
     // loop over all faces of unit cell
     // store only positive connections (I think...)
@@ -319,7 +318,7 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
                 note_new_connection(neighbor_segment, this_segment, Z_DIR, connections);
             }
         }
-    } // graph has been built, characterized in terms of connections vector.
+    } // graph has been built, characterized in terms of connections std::vector.
     int N_connections = connections.size();
     if (parameters.verbose) printf("Connections graph created. Number of connections = %d.\n",N_connections);
     for (int i = 0; i < N_connections; i++)
@@ -330,14 +329,14 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
     // store status of each segment
     int UNKNOWN = 1; int POCKET = 2; int CHANNEL = 3;
     if (parameters.debugmode) printf("Status IDs: UNKNOWN = %d, POCKET = %d, CHANNEL = %d\n",UNKNOWN,POCKET,CHANNEL);
-    vector<int> segment_identification;
-    vector<int> segments_that_are_pockets;
+    std::vector<int> segment_identification;
+    std::vector<int> segments_that_are_pockets;
     for (int i = 0; i < N_segments; i++)
         segment_identification.push_back(UNKNOWN);
     int N_pockets = 0;
     // create base of unit cells for each segment
     Unit_cell_id unit_cell_BASE; unit_cell_BASE.i = 0; unit_cell_BASE.j = 0; unit_cell_BASE.k = 0;
-    vector<Unit_cell_id> unit_cells_each_segment_BASE;
+    std::vector<Unit_cell_id> unit_cells_each_segment_BASE;
     for (int orz = 0; orz < N_segments; orz++)
         unit_cells_each_segment_BASE.push_back(unit_cell_BASE);
     // keep track of edges and segments that were visited
@@ -351,7 +350,7 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
         for (int count = 0; count < N_connections; count ++)
             edge_visit_status[count] = false;
         bool channel_found = false; // pass by reference to make it a pointer
-        vector<Unit_cell_id> unit_cells_each_segment = unit_cells_each_segment_BASE; // make them all (0,0,0)
+        std::vector<Unit_cell_id> unit_cells_each_segment = unit_cells_each_segment_BASE; // make them all (0,0,0)
         recursively_navigate_connections(seg, unit_cells_each_segment, segment_visit_status, edge_visit_status, connections, N_segments, N_connections, & channel_found);
         if (channel_found) {
             if (parameters.verbose) printf("Found that segment %d is a channel.\n",seg);
@@ -392,7 +391,7 @@ int FindAndBlockPockets(double * energy_grid, GridInfo grid_info, double tempera
 }
 
 
-void WriteCube(string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, GridInfo grid_info) {
+void WriteCube(std::string cube_name, Framework framework, GCMCParameters parameters, double * energy_grid, GridInfo grid_info) {
     // write energy grid pointer malloc'ed array to cube file
     FILE * gridfile;
     char gridfilename[512];
