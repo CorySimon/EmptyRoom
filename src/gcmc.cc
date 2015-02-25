@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
             double rand_for_acceptance = uniform01(generator); // for testing acceptance
             int which_type = type_generator(generator); // select adsorbate type 
             //
-            //  MC TRIAL: INSERTION
+            //  MC trail: Insertion
             //
             if (which_move < parameters.p_exchange / 2.0) {
                 stats.N_insertion_trials += 1;
@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
                 }
             }
             //
-            //  MC TRIAL: DELETION
+            //  MC trial: deletion 
             //
             else if (which_move < parameters.p_exchange)
             {
@@ -562,10 +562,11 @@ int main(int argc, char *argv[])
                 }
             }
             //
-            //  MC TRIAL:  MOVE
+            //  MC trial:  Translation
             //
             else if (which_move < parameters.p_exchange + parameters.p_move) {
-                if (parameters.debugmode) std::cout << "Translation Trial." << std::endl;
+                if (parameters.debugmode) 
+                    printf("Translation Trial.\n");
                 stats.N_move_trials += 1;
 
                 if (N_g[which_type] > 0) {
@@ -650,7 +651,7 @@ int main(int argc, char *argv[])
             //
             //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
             //
-            else {
+            else if (which_move < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
                 if (N_g[which_type] > 0) { // if there are paricles of this type in the system
                     stats.N_ID_swap_trials += 1;
 
@@ -702,6 +703,84 @@ int main(int argc, char *argv[])
                         guests[idx].type = which_type; // go back to old type.
                 } // end if N_g > 0
             } // end particle identity swap
+
+            //
+            //  MC trial: Regrow (take out molecule and insert it in a different, random location) like a move mostly
+            //
+            else {
+                if (parameters.debugmode) 
+                    printf("Regrow Trial.\n");
+                stats.N_regrow_trials += 1;
+                
+                if (N_g[which_type] > 0) { // if there are paricles of this type in the system
+                    // Randomly choose an adsorbate of which_type
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    int idx_move_type = uniformint(generator);
+                    int idx_move = adsorbate_index_list[which_type][idx_move_type]; // global ID in guests particle array
+                    
+                    // compute energy in current (old) position
+                    double energy_gf_old = 0.0;
+                    if (which_type == 0)
+                        energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),
+                                                             WrapToInterval(guests[idx_move].y_f , 1.0), 
+                                                             WrapToInterval(guests[idx_move].z_f , 1.0),
+                                                             grid_info, energy_grid0);
+                    if (which_type == 1)
+                        energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),
+                                                             WrapToInterval(guests[idx_move].y_f , 1.0), 
+                                                             WrapToInterval(guests[idx_move].z_f , 1.0),
+                                                             grid_info, energy_grid1);
+                    double energy_gg_old = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
+                    
+                    // store old coords
+                    GuestParticle old_position = guests[idx_move];
+
+                    // insert this guest in a new random location
+                    guests[N_g_total].x_f = uniform01(generator) * parameters.replication_factor_a;
+                    guests[N_g_total].y_f = uniform01(generator) * parameters.replication_factor_b;
+                    guests[N_g_total].z_f = uniform01(generator) * parameters.replication_factor_c;
+                    // what are the Cartesian coords? assign them
+                    double x, y, z; 
+                    FractionalToCartesian(parameters.t_matrix, 
+                                          guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, 
+                                          x, y, z);
+                    guests[N_g_total].x = x;
+                    guests[N_g_total].y = y;
+                    guests[N_g_total].z = z;
+                    
+                    // get energy at new position
+                    double energy_gf_new = 1e6;
+                    if (which_type == 0)
+                        energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),
+                                                             WrapToInterval(guests[idx_move].y_f , 1.0), 
+                                                             WrapToInterval(guests[idx_move].z_f , 1.0),
+                                                             grid_info, energy_grid0);
+                    if (which_type == 1)
+                        energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),
+                                                             WrapToInterval(guests[idx_move].y_f , 1.0), 
+                                                             WrapToInterval(guests[idx_move].z_f , 1.0),
+                                                             grid_info, energy_grid1);
+                    double energy_gg_new = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
+
+                    // compute change in energy, accept move if "favorable"
+                    double dE = energy_gf_new + energy_gg_new - (energy_gf_old + energy_gg_old);
+                    if (rand_for_acceptance < exp(-dE/parameters.T)) {
+                        stats.N_regrows += 1; 
+                        E_gg_this_cycle += energy_gg_new - energy_gg_old; E_gf_this_cycle += energy_gf_new - energy_gf_old;
+                        if (energy_gf_new > 1e6) {
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                            std::cout << "Old energy = " << energy_gf_old << std::endl;
+                            std::cout << "New energy = " << energy_gf_new << std::endl;
+                        }
+                        // already overwrote coords with new coords, no need to update coords in this case
+                    }
+                    else {
+                        // replace new cords with old coords
+                        guests[idx_move] = old_position;
+                    }
+                }
+            }
 
             // assert N_g < MAX_GUESTS
             if (N_g_total >= MAX_GUESTS - 2) {
@@ -766,6 +845,7 @@ int main(int argc, char *argv[])
     fprintf(outputfile, "    Deletions: %d / %d\n", stats.N_deletions, stats.N_deletion_trials);
     fprintf(outputfile, "    Moves: %d / %d\n", stats.N_moves, stats.N_move_trials);
     fprintf(outputfile, "    ID swaps: %d / %d\n", stats.N_ID_swaps, stats.N_ID_swap_trials);
+    fprintf(outputfile, "    Regrows: %d / %d\n", stats.N_regrows, stats.N_regrow_trials);
     fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
     
     // write loadings
