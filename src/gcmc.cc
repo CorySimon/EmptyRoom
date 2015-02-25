@@ -453,8 +453,11 @@ int main(int argc, char *argv[])
                 guests[N_g_total].x_f = uniform01(generator) * parameters.replication_factor_a;
                 guests[N_g_total].y_f = uniform01(generator) * parameters.replication_factor_b;
                 guests[N_g_total].z_f = uniform01(generator) * parameters.replication_factor_c;
-                // what are the Cartesian coords?
-                double x, y, z; FractionalToCartesian(parameters.t_matrix, guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, x, y, z);
+                // what are the Cartesian coords? updat guests array
+                double x, y, z; 
+                FractionalToCartesian(parameters.t_matrix, 
+                                      guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, 
+                                      x, y, z);
                 guests[N_g_total].x = x;
                 guests[N_g_total].y = y;
                 guests[N_g_total].z = z;
@@ -484,7 +487,8 @@ int main(int argc, char *argv[])
                     std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
                 }
                 if (rand_for_acceptance < acceptance_insertion) {  // accept insertion move
-                    if (parameters.debugmode) std::cout << "\tInsertion accepted. " << std::endl;
+                    if (parameters.debugmode) 
+                        printf("\tInsertion accepted.\n");
                     stats.N_insertions += 1;
                     if (energy_gf > 1e6)
                         std::cout << "Insertion accepted with huge energy" << std::endl;
