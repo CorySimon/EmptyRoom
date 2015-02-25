@@ -50,7 +50,6 @@ __global__ void ComputeGridSheet(
     // set up Carteisan coordinates for insertion point and framework
     double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
     DeviceFractionalToCartesian(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
-    double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; // cartesian coords of framework (changes inside loop)
 
     for (int i = -parameters.replication_factor_a; i <=parameters.replication_factor_a; i++) { // direction of x and a
         for (int j = -parameters.replication_factor_b; j <= parameters.replication_factor_b; j++) { // direction of y and b
@@ -59,10 +58,12 @@ __global__ void ComputeGridSheet(
                 for (int framework_atom_index = 0; framework_atom_index < parameters.N_framework_atoms; framework_atom_index ++) {
 
                     // fractional coordinates of framework atom under consideration
-                    double x_f_framework = framework_atoms[framework_atom_index].x_f + i;
-                    double y_f_framework = framework_atoms[framework_atom_index].y_f + j;
-                    double z_f_framework = framework_atoms[framework_atom_index].z_f + k;
-
+                    double x_f_framework = framework_atoms[framework_atom_index].x_f + 1.0*i;
+                    double y_f_framework = framework_atoms[framework_atom_index].y_f + 1.0*j;
+                    double z_f_framework = framework_atoms[framework_atom_index].z_f + 1.0*k;
+                    
+                    // cartesian coords of framework 
+                    double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; 
                     DeviceFractionalToCartesian(parameters.t_matrix,
                             x_f_framework, y_f_framework, z_f_framework,
                             x_framework, y_framework, z_framework);
@@ -92,7 +93,74 @@ __global__ void ComputeGridSheet(
 
      if ((z_index < parameters.N_z) && (y_index < parameters.N_y)) {  // write energies
          int energy_index_here = z_index + y_index * parameters.N_z; // WTF why do I need to do this instead of call directly?
+//         printf("(Thread.x, Thread.y)=(%d,%d). (Block.x, Block.y)=(%d,%d). Responsible for y_f=%f, z_f=%f.E[%d]=%f\n", threadIdx.x, threadIdx.y, blockIdx.x, blockIdx.y, y_f, z_f, energy_index_here, energy);
          zy_energies[energy_index_here] = energy;
+     }
+}
+
+__global__ void ComputeGridSheetAccessibleOrNot(
+     double * z_f_gridpoints,
+     double * y_f_gridpoints,
+     double * zy_energies,
+     FrameworkParticle * framework_atoms,
+     GridParameters parameters,
+     double x_f) {
+
+	// use a hard-sphere model to determine if point is accessible (1) or not (0)
+    int z_index = threadIdx.x + blockIdx.x * blockDim.x;  // which z point are we working on?
+    int y_index = threadIdx.y + blockIdx.y * blockDim.y;  // which y point are we working on?
+
+    // if this thread does not have an assigned z or y point, do nothing.
+    if ((z_index > (parameters.N_z - 1)) || (y_index > (parameters.N_y - 1)))
+        return;
+
+    // which fractional coordinate z_f and y_f is this thread responsible for?
+    double z_f = z_f_gridpoints[z_index];  // local copy of z_f
+    double y_f = y_f_gridpoints[y_index];  // local copy of y_f
+
+    // set up Carteisan coordinates for insertion point and framework
+    double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
+    DeviceFractionalToCartesian(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
+    double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; // cartesian coords of framework (changes inside loop)
+    
+    bool overlap = false;  // stop loop
+    for (int i = -1; (i <=1) && !overlap; i++) { // direction of x and a
+        for (int j = -1; (j <= 1) && !overlap; j++) { // direction of y and b
+            for (int k = -1; (k <= 1) && !overlap; k++) { // direction of z and c
+
+                for (int framework_atom_index = 0; framework_atom_index < parameters.N_framework_atoms; framework_atom_index ++) {
+
+                    // fractional coordinates of framework atom under consideration
+                    double x_f_framework = framework_atoms[framework_atom_index].x_f + i;
+                    double y_f_framework = framework_atoms[framework_atom_index].y_f + j;
+                    double z_f_framework = framework_atoms[framework_atom_index].z_f + k;
+
+                    DeviceFractionalToCartesian(parameters.t_matrix,
+                            x_f_framework, y_f_framework, z_f_framework,
+                            x_framework, y_framework, z_framework);
+
+                    double dx = x - x_framework; // distances between framework and sample point
+                    double dy = y - y_framework;
+                    double dz = z - z_framework;
+
+                    double r2 = dx*dx + dy*dy + dz*dz; //r squared
+
+                    if (r2 < framework_atoms[framework_atom_index].sig_with_adsorbate_squared) {
+                        // overlap between adsorbate and structure!
+                        overlap = true;
+                    }
+
+                 } // end loop over framework atoms
+            } // end loop over c-direction unit cell replication
+         } // end loop over b-direction unit cell replication
+     } // end loop over a-direction unit cell replication
+
+     if ((z_index < parameters.N_z) && (y_index < parameters.N_y)) {  // write energies
+         int energy_index_here = z_index + y_index * parameters.N_z; // WTF why do I need to do this instead of call directly?
+         if (overlap)
+             zy_energies[energy_index_here] = 0;  // not accessible
+         else
+             zy_energies[energy_index_here] = 1;  // accessible
      }
 }
 #endif // SRC_COMPUTEGRIDSHEET_H_

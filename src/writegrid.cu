@@ -54,6 +54,10 @@ int main(int argc, char *argv[]) {
         printf("Run as:\n./writegrid structure_name AdsorbateID\n");
         exit(EXIT_FAILURE);
     }
+    bool accessible_or_not_grid = false;
+    if (accessible_or_not_grid)
+        printf("\n\nPriting accessibility grid based on hard-sphere model...\n\n");
+
     //
     //  Import settings
     //
@@ -96,9 +100,17 @@ int main(int argc, char *argv[]) {
     //
     // Construct grid
     //
-    int N_x = static_cast<int>(ceil(framework.a / parameters.grid_resolution)); // size of grid
-    int N_y = static_cast<int>(ceil(framework.b / parameters.grid_resolution));
-    int N_z = static_cast<int>(ceil(framework.c / parameters.grid_resolution));
+    int N_x, N_y, N_z;
+    if (accessible_or_not_grid) {  // compute grid in fractional space
+        N_x = static_cast<int>(ceil(1.0 / parameters.grid_resolution)); // size of grid
+        N_y = static_cast<int>(ceil(1.0 / parameters.grid_resolution));
+        N_z = static_cast<int>(ceil(1.0 / parameters.grid_resolution));
+    }
+    else {
+        N_x = static_cast<int>(ceil(framework.a / parameters.grid_resolution)); // size of grid
+        N_y = static_cast<int>(ceil(framework.b / parameters.grid_resolution));
+        N_z = static_cast<int>(ceil(framework.c / parameters.grid_resolution));
+    }
     parameters.N_x = N_x; parameters.N_y = N_y; parameters.N_z = N_z;
 
     // pointer array of fractional grid points
@@ -128,38 +140,30 @@ int main(int argc, char *argv[]) {
     // PREPARE GRID FILE
     //
     FILE * gridfile;
-    char gridfilename[256] = "data/grids/";
-    strcat(gridfilename, framework.name.c_str());
-    strcat(gridfilename,"_"); strcat(gridfilename, parameters.adsorbate.c_str());
-    strcat(gridfilename,"_"); strcat(gridfilename, forcefield.name.c_str());
-    if (parameters.gridoutputformat == "txt") {  // format I  made up for Henry coefficient and GCMC calcs
-        gridfile = fopen(strcat(gridfilename, ".txt"), "w");
+    char gridfilename[512];
+    if ((!accessible_or_not_grid) & (parameters.gridoutputformat == "txt")) {  // format I  made up for Henry coefficient and GCMC calcs
+        sprintf(gridfilename, "data/grids/%s_%s_%s.txt", framework.name.c_str(), parameters.adsorbate.c_str(), forcefield.name.c_str());
+        gridfile = fopen(gridfilename, "w");
         fprintf(gridfile, "%d %d %d  = (N_x,N_y,N_z) grid points (grid is in fractional coords). Endpoints included.\n", N_x, N_y, N_z);
     }
-    else if (parameters.gridoutputformat == "cube") // for visualization with VisIt
-    {
-        gridfile = fopen(strcat(gridfilename, ".cube"), "w");
+    else if (parameters.gridoutputformat == "cube") {  // for visualization with VisIt
+        if (accessible_or_not_grid) 
+            sprintf(gridfilename, "data/grids/%s_%s_%s_accessibility.cube", framework.name.c_str(), parameters.adsorbate.c_str(), forcefield.name.c_str());
+        else
+            sprintf(gridfilename, "data/grids/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbate.c_str(), forcefield.name.c_str());
+
+        gridfile = fopen(gridfilename, "w");
+        
         fprintf(gridfile, "\nThis is a grid file.\n");
         fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-              framework.noatoms, 0.0, 0.0, 0.0); // give number of atoms
+              0, 0.0, 0.0, 0.0); // give number of atoms
         // give little vectors that form a volume element
         fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
               N_x, framework.t_matrix[0][0] / (N_x - 1), 0.0, 0.0);
         fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
-              N_y, framework.t_matrix[0][1]/ (N_y - 1), framework.t_matrix[1][1] / (N_y - 1), 0.0);
+              N_y, framework.t_matrix[0][1] / (N_y - 1), framework.t_matrix[1][1] / (N_y - 1), 0.0);
         fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf\n",
               N_z, framework.t_matrix[0][2] / (N_z - 1), framework.t_matrix[1][2] / (N_z - 1), framework.t_matrix[2][2] / (N_z - 1));
-
-        // write atoms to grid file
-        double x, y, z;
-      for (int i = 0; i < framework.noatoms; i++) {
-          double atomic_mass = 1.0;
-          int atomic_number = 1;
-          // TODO get atomic numbers and atomic masses, for now just say they are all H ha ha
-          HostFractionalToCartesian(framework.t_matrix, framework_atoms[i].x_f, framework_atoms[i].y_f, framework_atoms[i].z_f , x, y, z);
-          fprintf(gridfile, "%d % 13.6lf % 13.6lf % 13.6lf % 13.6lf\n", atomic_number, atomic_mass, x, y, z);
-      }
-      fprintf(gridfile," 1    1\n");
     }
     else {
         printf("Grid output format must be txt or cube\n");
@@ -210,27 +214,85 @@ int main(int argc, char *argv[]) {
     }// TODO: remove and use framework.t_matrix instead. right now it cant pass to cuda kernel without memory error...
 
     int count_grid_pts = 0;
-    for (int i = 0; i < N_x; i++) {
-        ComputeGridSheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
-                d_y_f_gridpoints,
-                d_zy_energies,
-                d_framework_atoms,
-                parameters,
-                x_f_gridpoints[i]);
-        CUDA_CALL( cudaPeekAtLastError() );
-        CUDA_CALL( cudaDeviceSynchronize() );
-        cudaDeviceSynchronize();
 
-        // get energies from device
-        CUDA_CALL(cudaMemcpy(h_zy_energies, d_zy_energies, N_z * N_y * sizeof(double) , cudaMemcpyDeviceToHost));
-        cudaDeviceSynchronize();
+    if (!accessible_or_not_grid) {
+        for (int i = 0; i < N_x; i++) {
+//            printf("x_F=%f\n", x_f_gridpoints[i]);
+            ComputeGridSheet <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
+                    d_y_f_gridpoints,
+                    d_zy_energies,
+                    d_framework_atoms,
+                    parameters,
+                    x_f_gridpoints[i]);
+            CUDA_CALL( cudaPeekAtLastError() );
+            CUDA_CALL( cudaDeviceSynchronize() );
+            cudaDeviceSynchronize();
 
-        // write energies to file
-        if (parameters.gridoutputformat=="cube") {
-            for (int j=0; j < N_y; j++) {
+            // get energies from device
+            CUDA_CALL(cudaMemcpy(h_zy_energies, d_zy_energies, N_z * N_y * sizeof(double) , cudaMemcpyDeviceToHost));
+            cudaDeviceSynchronize();
+            
+//            printf("\n\n Host:\n");
+//            for (int kk = 0; kk < N_z; kk++) {
+//                for (int jj=0; jj<N_y;jj++){
+//                    printf("E[%d]=%f\n", kk+ jj*N_z, h_zy_energies[kk+ jj*N_z]);
+//                }
+//            }
+//            exit(EXIT_FAILURE);
+
+            // write energies to file
+            if (parameters.gridoutputformat=="cube") {
+                for (int j = 0; j < N_y; j++) {
+                    int count = 0;
+                    for(int k = 0; k < N_z; k++) {
+                        fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z] * 8.314 / 1000); // kJ/mol
+                        count ++;
+                        if (count == 6) {
+                            fprintf(gridfile, "\n");
+                            count = 0; // reset counter
+                        }
+                        count_grid_pts ++;
+                    }
+                    fprintf(gridfile, "\n"); //new line after z over
+                }
+            }
+
+            if (parameters.gridoutputformat=="txt") { // format I made up ^.^ TODO more efficient format?
+                for (int j = 0; j < N_y; j++) {
+                    for(int k = 0; k < N_z; k++) {
+                        count_grid_pts += 1;
+                        fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z]);
+                        if ( k == (N_z - 1))
+                            fprintf(gridfile, "\n"); // new line for every pencil of z's
+                    }
+                }
+            }
+            if (parameters.verbose) printf("   Sheet %d out of %d completed.\n", i, N_x);
+        } // end x loop
+    }
+    else {
+        printf("Starting...\n");
+        for (int i = 0; i < N_x; i++) {
+            ComputeGridSheetAccessibleOrNot <<<dimGrid, dimBlock>>> (d_z_f_gridpoints,
+                    d_y_f_gridpoints,
+                    d_zy_energies,
+                    d_framework_atoms,
+                    parameters,
+                    x_f_gridpoints[i]);
+            CUDA_CALL( cudaPeekAtLastError() );
+            CUDA_CALL( cudaDeviceSynchronize() );
+            cudaDeviceSynchronize();
+
+            // get energies from device
+            CUDA_CALL(cudaMemcpy(h_zy_energies, d_zy_energies, N_z * N_y * sizeof(double) , cudaMemcpyDeviceToHost));
+            cudaDeviceSynchronize();
+            if (parameters.verbose) printf("   Sheet %d out of %d completed.\n", i, N_x);
+
+            // write energies to cube file
+            for (int j = 0; j < N_y; j++) {
                 int count = 0;
                 for(int k = 0; k < N_z; k++) {
-                    fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z] * 8.314 / 1000); // kJ/mol
+                    fprintf(gridfile, "%d ", int(h_zy_energies[k + j * N_z])); // kJ/mol
                     count ++;
                     if (count == 6) {
                         fprintf(gridfile, "\n");
@@ -240,20 +302,9 @@ int main(int argc, char *argv[]) {
                 }
                 fprintf(gridfile, "\n"); //new line after z over
             }
-        }
-
-        if (parameters.gridoutputformat=="txt") { // format I made up ^.^ TODO more efficient format?
-            for (int j = 0; j < N_y; j++) {
-                for(int k = 0; k < N_z; k++) {
-                    count_grid_pts += 1;
-                    fprintf(gridfile, "% 13.6E ", h_zy_energies[k + j * N_z]);
-                    if ( k == (N_z - 1))
-                        fprintf(gridfile, "\n"); // new line for every pencil of z's
-                }
-            }
-        }
-        if (parameters.verbose) printf("   Sheet %d out of %d completed.\n", i, N_x);
-    } // end x loop
+        } // end x loop
+    }
+    assert(count_grid_pts == (N_x * N_y * N_z));
 
     double sim_time = ReadTimer() - t0;
     fprintf(outputfile, "    Time to write grid: %f s\n", sim_time);
@@ -269,6 +320,4 @@ int main(int argc, char *argv[]) {
     free(framework_atoms);
     free(x_f_gridpoints); free(y_f_gridpoints); free(z_f_gridpoints);
     fclose(outputfile); fclose(gridfile);
-
 }
-

@@ -1,6 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
 
-
 # writegrid project (requires cuda)
 project (writegrid)
 find_package(CUDA REQUIRED)
