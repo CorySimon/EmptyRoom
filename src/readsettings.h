@@ -294,62 +294,45 @@ PairDouble GrabGuestForceFieldParams(Forcefield forcefield, std::string adsorbat
     return eps_sig;
 }
 
-void GetGuestMoleculeInfo(GuestMoleculeInfo & guestmoleculeinfo[], GCMCParameters & parameters) {
+void GetGuestMoleculeInfo(GuestMoleculeInfo * guestmoleculeinfo, GCMCParameters & parameters) {
     // load guest molecule information
     parameters.nuniquebeads = 0;  // number of unique beads in the guest molecules
     for (int a = 0; a < parameters.numadsorbates; a++) {
-        printf("adsorbate: %s\n", parameters.adsorbate[a].c_str());
-        printf("fuuuuck\n");
-//        guestmoleculeinfo[a].type = parameters.adsorbate[a]; 
-        printf("fuck\n");
+        guestmoleculeinfo[a].type = parameters.adsorbate[a]; 
 
         char adsorbateinfofilename[1024];
         sprintf(adsorbateinfofilename, "data/adsorbates/%s.info", parameters.adsorbate[a].c_str());
-        printf("yeah\n");
         
         std::ifstream adsorbateinfofile(adsorbateinfofilename);
         if (adsorbateinfofile.fail()) {
             printf("adsorbate info file not found: data/adsorbates/%s.info\n", parameters.adsorbate[a].c_str());
             exit(EXIT_FAILURE);
         }
-        printf("dude\n");
         std::string line;
         
         // get number of beads
-        printf("uh uh\n");
         getline(adsorbateinfofile, line);
-        std::cout << line;
         std::istringstream linestream(line);
-        printf("\nabout to grab\n");
         linestream >> guestmoleculeinfo[a].nbeads;
-        printf("\t%d beads kk\n", guestmoleculeinfo[a].nbeads);
         
-        printf("hi\n");
         // get type of beads
         for (int i = 0; i < guestmoleculeinfo[a].nbeads; i++) {
-            printf("i=%d\n", i);
-            printf("a\n");
+            // bead label
             getline(adsorbateinfofile, line);
-            std::cout << line << std::endl;
-            printf("b\n");
             linestream.str(line); linestream.clear();
             std::string beadlabel;
-            linestream >> beadlabel;
-            printf("c\n");
-            guestmoleculeinfo[a].beadlabels[i] = beadlabel;
-            printf("d\n");
-            printf("\t\t%s \n", guestmoleculeinfo[a].beadlabels[i].c_str());
+            linestream >> guestmoleculeinfo[a].beadlabels[i];
+            
+            // see if this bead is recorded in uniquebeadlist
             bool beadalreadyhere = false;
             for (int k = 0; k < parameters.nuniquebeads; k++) {
                 if (guestmoleculeinfo[a].beadlabels[i] == parameters.uniquebeadlist[k])
                     beadalreadyhere = true;
             }
             if (beadalreadyhere == false) {
-                printf("not found\n");
                 parameters.uniquebeadlist[parameters.nuniquebeads] = guestmoleculeinfo[a].beadlabels[i];
                 parameters.nuniquebeads += 1;
             }
-            printf("e\n");
         }
 
         // get bond length
@@ -357,14 +340,12 @@ void GetGuestMoleculeInfo(GuestMoleculeInfo & guestmoleculeinfo[], GCMCParameter
             getline(adsorbateinfofile, line);
             linestream.str(line); linestream.clear();
             linestream >> guestmoleculeinfo[a].bondlength;
-            printf("\tbond lenght %f\n", guestmoleculeinfo[a].bondlength);
         }
         else
             guestmoleculeinfo[a].bondlength = -1.0;
 
         adsorbateinfofile.close();
     }
-    printf("uniqe beads: %d\n", parameters.nuniquebeads);
 
     // assign integer IDs according to position in parameters.uniquebeadlist
     for (int a = 0; a < parameters.numadsorbates; a++) {  // for each guest molecule

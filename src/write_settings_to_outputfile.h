@@ -290,7 +290,6 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "    Prob(particle ID swap): %f\n", parameters.p_identity_change);
     fprintf(outputfile, "    Prob(regrow): %f\n", parameters.p_regrow);
 
-
     //
     // Grid info
     //

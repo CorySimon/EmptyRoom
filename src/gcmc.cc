@@ -51,6 +51,19 @@ double ReadTimer() {
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
+bool OutsideUnitCell(double x_f, double y_f, double z_f,
+                    GCMCParameters parameters) {
+    // check if outside bounding box
+    if ((x_f > parameters.replication_factor_a) | 
+        (y_f > parameters.replication_factor_b) | 
+        (z_f > parameters.replication_factor_c) | 
+        (x_f < 0.0) | (y_f < 0.0) | (z_f < 0.0)) {
+        return true;
+    }
+    else
+        return false;
+}
+
 void FractionalToCartesian(double T_matrix[3][3],
     double x_f, double y_f, double z_f,
     double & x, double & y, double & z) 
@@ -76,126 +89,185 @@ double WrapToInterval(double x, double z) {
     return x - z * floor(x / z);
 }
 
-////
-//// Compute potential energy of guest molecule id "which", the contribution from other guests.
-////
-//double GuestGuestEnergy(int N_g, 
-//    int which, 
-//    GuestParticle * guests, 
-//    GCMCParameters parameters)
-//{
-//    double E_gg_ = 0.0; // initiate
-//    for (int k = 0 ; k < N_g; k++ ) { 
-//        // nearest particle image
-//        if (k == which) 
-//            continue; // do not include self interation orz
-//        // use nearest image
-//        double dx_f = guests[k].x_f - guests[which].x_f;
-//        double dy_f = guests[k].y_f - guests[which].y_f;
-//        double dz_f = guests[k].z_f - guests[which].z_f;
-//        dx_f = dx_f - parameters.replication_factor_a * round(dx_f / parameters.replication_factor_a);
-//        dy_f = dy_f - parameters.replication_factor_b * round(dy_f / parameters.replication_factor_b);
-//        dz_f = dz_f - parameters.replication_factor_c * round(dz_f / parameters.replication_factor_c);
-////      assert (dx_f < 0.5 * parameters.replication_factor_a);
-////      assert (dy_f < 0.5 * parameters.replication_factor_b);
-////      assert (dz_f < 0.5 * parameters.replication_factor_c);
-////      assert (dx_f > -0.5 * parameters.replication_factor_a);
-////      assert (dy_f > -0.5 * parameters.replication_factor_b);
-////      assert (dz_f > -0.5 * parameters.replication_factor_c);
-//        double dx, dy, dz;
-//        FractionalToCartesian(parameters.t_matrix,
-//            dx_f, dy_f, dz_f,
-//            dx, dy, dz);
-//        double r2 = dx*dx + dy*dy + dz*dz;
-//        if (r2 < min_r) 
-//            return 100000000000000.0; // overwrite if too small
-//        if (r2 < parameters.r_cutoff_squared) {
-//            double sigma_over_r_sixth = pow(parameters.sigma_squared_matrix[guests[which].type][guests[k].type] / r2, 3.0); // TODO: make sig2
-//            E_gg_ += 4.0 * parameters.epsilon_matrix[guests[which].type][guests[k].type] * sigma_over_r_sixth * (sigma_over_r_sixth - 1.0); // energy of framework atom id with guest_atom
-//        }
+//void DeleteGuest(GuestMolecule * guestmolecules,
+//                 GuestBead * guestbeadsint,
+//                 GuestMoleculeInfo * guestmoleculeinfo,
+//                 int guestmoleculeid, 
+//                 int N_g) {
+//    // Remove guest guestmoleculeid
+//    
+//    // Remove each bead from the guest
+//    for (int b = 0; b < guestmoleculeinfo[guestmolecules[guestmoleculeid]].nbeads; b++ ) {  // for each bead that makes up this guest molecule
+//        int beadid = guestmolecules[guestmoleculeid].beadID[b];
+//
 //    }
-//    return E_gg_;
 //}
-//
-////
-//// Calculate total system guest-guest energy
-//// 
-//double GuestGuestTotalEnergy(int N_g, 
-//       GuestParticle * guests, 
-//       GCMCParameters parameters)
-//{
-//    double E_gg__ = 0.0;
-//    for (int i = 0; i < N_g; i ++) {
-//        E_gg__ += GuestGuestEnergy(N_g, i, guests, parameters); 
-//    }
-//    return E_gg__ / 2.0; // 2 is for double counting
-//}
-//
-//
-//  Get index of flattened, 1D pointer array that corresponds to grid point index (i, j, k)
-//
+
+double GuestGuestEnergy(int N_g,
+                        int guestmoleculeid, 
+                        GuestMoleculeInfo * guestmoleculeinfo,
+                        GuestMolecule * guestmolecules,
+                        GuestBead * guestbeads,
+                        GCMCParameters parameters) {
+    // Compute potential energy of guest molecule guestmoleculeid, the contribution from other guests.
+    double E_gg = 0.0; // initiate
+    
+    // for each bead in this guest molecule
+    for (int b_this = 0; b_this < guestmoleculeinfo[guestmolecules[guestmoleculeid].type].nbeads; b_this++) {
+        // coordinates of this bead
+        double x_f = guestbeads[guestmolecules[guestmoleculeid].beadID[b_this]].x_f;
+        double y_f = guestbeads[guestmolecules[guestmoleculeid].beadID[b_this]].y_f;
+        double z_f = guestbeads[guestmolecules[guestmoleculeid].beadID[b_this]].z_f;
+        // get bead type for this
+        int this_bead_type = guestbeads[guestmolecules[guestmoleculeid].beadID[b_this]].type;
+        // for each other guest molecule 
+        for (int k = 0 ; k < N_g; k++) {
+            // do not include self interation orz
+            if (k == guestmoleculeid) 
+                continue; 
+            // get energy contribution from each bead in other guest molecule
+            for (int b = 0; b < guestmoleculeinfo[guestmolecules[k].type].nbeads; b++ ) {
+                // get other bead type for other guest molecule
+                int other_bead_type = guestbeads[guestmolecules[k].beadID[b]].type;
+
+                // distance in fractional coords
+                double dx_f = guestbeads[guestmolecules[k].beadID[b]].x_f - x_f;
+                double dy_f = guestbeads[guestmolecules[k].beadID[b]].y_f - y_f;
+                double dz_f = guestbeads[guestmolecules[k].beadID[b]].z_f - z_f;
+
+                // take nearest image
+                dx_f = dx_f - parameters.replication_factor_a * round(dx_f / parameters.replication_factor_a);
+                dy_f = dy_f - parameters.replication_factor_b * round(dy_f / parameters.replication_factor_b);
+                dz_f = dz_f - parameters.replication_factor_c * round(dz_f / parameters.replication_factor_c);
+                // assert within bounds #todo remove later
+                assert (dx_f < 0.5 * parameters.replication_factor_a);
+                assert (dy_f < 0.5 * parameters.replication_factor_b);
+                assert (dz_f < 0.5 * parameters.replication_factor_c);
+                assert (dx_f > -0.5 * parameters.replication_factor_a);
+                assert (dy_f > -0.5 * parameters.replication_factor_b);
+                assert (dz_f > -0.5 * parameters.replication_factor_c);
+
+                // distance in Cartesian
+                double dx, dy, dz;
+                FractionalToCartesian(parameters.t_matrix,
+                                        dx_f, dy_f, dz_f,
+                                        dx, dy, dz);
+                
+                // Compute LJ potential
+                double r2 = dx*dx + dy*dy + dz*dz;
+                if (r2 < min_r) 
+                    return 100000000000000.0; // overwrite if too small
+                if (r2 < parameters.r_cutoff_squared) {
+                    double sigma_over_r_sixth = pow(parameters.sigma_squared_matrix[this_bead_type][other_bead_type] / r2, 3.0); 
+                    E_gg += 4.0 * parameters.epsilon_matrix[this_bead_type][other_bead_type] * sigma_over_r_sixth * (sigma_over_r_sixth - 1.0);
+                }
+            }  // end loop over BEADS of other guest molecule
+        }  // end loop over other guest molecules
+    }  // end loop over beads of THIS guest molecule
+    return E_gg;
+}
+
+double TotalGuestGuest(int N_g,
+                        int guestmoleculeid, 
+                        GuestMoleculeInfo * guestmoleculeinfo,
+                        GuestMolecule * guestmolecules,
+                        GuestBead * guestbeads,
+                        GCMCParameters parameters) {
+    // Calculate total system guest-guest energy
+    double E_gg = 0.0;
+    for (int i = 0; i < N_g; i ++) {
+        E_gg += GuestGuestEnergy(N_g,
+                        guestmoleculeid, 
+                        guestmoleculeinfo,
+                        guestmolecules,
+                        guestbeads,
+                        parameters);
+    }
+    return E_gg / 2.0; // 2 is for double counting
+}
+
 int GetEnergyGridIndex(int i, int j, int k, GridInfo grid_info) {
+    //
+    //  Get index of flattened, 1D pointer array that corresponds to grid point index (i, j, k)
+    //
     // returns index in energy_grid corresponding to gridpoint index i,j,k
     return k + j * grid_info.N_z + i * grid_info.N_y * grid_info.N_z;
 }
 
 //
-// Interpolate energy grid to get guest-framework energy
+// Interpolate energy grid to get bead-framework energy
 //  
-double GuestFrameworkEnergy(double x_f_, double y_f_, double z_f_,
+double BeadFrameworkEnergy(double x_f_, double y_f_, double z_f_,
             GridInfo grid_info,
-            double * energy_grid)
-{
-        // reflect fractional coords in [0,1] for grid
-//      assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
-//      assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
-        //  FORMAT OF GRID: energy_grid[k+j*N_z+i*N_y*N_z]
-        
-        // define indices of 8 grid points, lower ones are:
-        int i_x_low = floor(x_f_ / grid_info.dx_f);
-        int i_y_low = floor(y_f_ / grid_info.dy_f);
-        int i_z_low = floor(z_f_ / grid_info.dz_f);
-        // trilinear interpolation http://en.wikipedia.org/wiki/Trilinear_interpolation
-        
-        // difference between our point and the vertices
-        double x_d = (x_f_ - i_x_low * grid_info.dx_f) / grid_info.dx_f;
-        double y_d = (y_f_ - i_y_low * grid_info.dy_f) / grid_info.dy_f;
-        double z_d = (z_f_ - i_z_low * grid_info.dz_f) / grid_info.dz_f;
-        
-        // smash cube in x direction
-        double c00 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low  ,grid_info)];
-        double c10 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low  ,grid_info)];
-        double c01 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low+1,grid_info)];
-        double c11 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low+1,grid_info)];
-        
-        // further smash cube in y direction
-        double c0 = c00 * (1.0 - y_d) + c10 * y_d;
-        double c1 = c01 * (1.0 - y_d) + c11 * y_d;
-        
-        // finally, linear interpolation in z direction
-        return c0 * (1 - z_d) + c1 * z_d;
+            double * energy_grid) {
+    // reflect fractional coords in [0,1] for grid
+    // TODO: put wrap function here?
+    assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
+    assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
+    //  FORMAT OF GRID: energy_grid[k+j*N_z+i*N_y*N_z]
+
+    // define indices of 8 grid points, lower ones are:
+    int i_x_low = floor(x_f_ / grid_info.dx_f);
+    int i_y_low = floor(y_f_ / grid_info.dy_f);
+    int i_z_low = floor(z_f_ / grid_info.dz_f);
+    // trilinear interpolation http://en.wikipedia.org/wiki/Trilinear_interpolation
+
+    // difference between our point and the vertices
+    double x_d = (x_f_ - i_x_low * grid_info.dx_f) / grid_info.dx_f;
+    double y_d = (y_f_ - i_y_low * grid_info.dy_f) / grid_info.dy_f;
+    double z_d = (z_f_ - i_z_low * grid_info.dz_f) / grid_info.dz_f;
+
+    // smash cube in x direction
+    double c00 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low  ,grid_info)];
+    double c10 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low  ,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low  ,grid_info)];
+    double c01 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low  ,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low  ,i_z_low+1,grid_info)];
+    double c11 = energy_grid[GetEnergyGridIndex(i_x_low,i_y_low+1,i_z_low+1,grid_info)] * (1.0 - x_d) + x_d*energy_grid[GetEnergyGridIndex(i_x_low+1,i_y_low+1,i_z_low+1,grid_info)];
+
+    // further smash cube in y direction
+    double c0 = c00 * (1.0 - y_d) + c10 * y_d;
+    double c1 = c01 * (1.0 - y_d) + c11 * y_d;
+
+    // finally, linear interpolation in z direction
+    return c0 * (1 - z_d) + c1 * z_d;
 }
 
-////
-//// Calculate total system framework-guest energy
-////
-//double GuestFrameworkTotalEnergy(int N_g, 
-//        double * energy_grid0, 
-//        double * energy_grid1, 
-//        GuestParticle * guests,
-//        GridInfo grid_info)
-//{
-//    double E_gf__ = 0.0;
-//    for (int i = 0; i < N_g; i ++) {
-//        if (guests[i].type == 0)
-//            E_gf__ += GuestFrameworkEnergy(WrapToInterval(guests[i].x_f,1.0), WrapToInterval(guests[i].y_f,1.0), WrapToInterval(guests[i].z_f,1.0),
-//                        grid_info, energy_grid0);
-//        if (guests[i].type == 1)
-//            E_gf__ += GuestFrameworkEnergy(WrapToInterval(guests[i].x_f,1.0), WrapToInterval(guests[i].y_f,1.0), WrapToInterval(guests[i].z_f,1.0),
-//                        grid_info, energy_grid1);
-//    }
-//    return E_gf__;
-//}
+double GuestFrameworkEnergy(int guestmoleculeid, 
+                            GuestMoleculeInfo * guestmoleculeinfo,
+                            GuestMolecule * guestmolecules,
+                            GuestBead * guestbeads,
+                            GridInfo grid_info,
+                            double ** energy_grids) {
+    // Compute energy of guestmoleculeid'th guest molecule
+    double E_gf = 0.0;
+    for (int b = 0; b < guestmoleculeinfo[guestmolecules[guestmoleculeid].type].nbeads; b++) {  // for each bead that makes up this guest molecule
+        int beadid = guestmolecules[guestmoleculeid].beadID[b];  // id of bead in guestbeads
+        int beadtype = guestbeads[beadid].type;  // int id of bead type
+        E_gf += BeadFrameworkEnergy(WrapToInterval(guestbeads[beadid].x_f, 1.0),
+                                    WrapToInterval(guestbeads[beadid].y_f, 1.0),
+                                    WrapToInterval(guestbeads[beadid].z_f, 1.0),
+                                    grid_info, energy_grids[beadtype]);
+    }
+    return E_gf;
+}
+
+double TotalGuestFrameworkEnergy(int N_g, 
+                            GuestMoleculeInfo * guestmoleculeinfo,
+                            GuestMolecule * guestmolecules,
+                            GuestBead * guestbeads,
+                            GridInfo grid_info,
+                            double ** energy_grids) {
+    // Calculate total system framework-guest energy
+    double E_gf = 0.0;
+    for (int i = 0; i < N_g; i ++) {
+        E_gf += GuestFrameworkEnergy(i,
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            grid_info,
+                            energy_grids);
+    }
+    return E_gf;
+}
 
 ////
 //// Write guest positions to file
@@ -263,15 +335,7 @@ int main(int argc, char *argv[])
     //
     // Read adsorbate info
     //
-    printf("%d adsorbates\n", parameters.numadsorbates);
-    
-//    GuestMoleculeInfo * guestmoleculeinfo = (GuestMoleculeInfo *) calloc(parameters.numadsorbates, sizeof(GuestMoleculeInfo));
     GuestMoleculeInfo guestmoleculeinfo[2];  // at most 2 adsorbates
-//    guestmoleculeinfo[0].beadlabels = (char **) calloc(2, sizeof(char *));
-//    guestmoleculeinfo[0].beadlabels[0] = (char *) calloc(512, sizeof(char));
-//    GuestMoleculeInfo * guestmoleculeinfo = (GuestMoleculeInfo *) malloc(parameters.numadsorbates * sizeof(GuestMoleculeInfo));
-    printf("kk\n");
-    printf("assigned\n");
     GetGuestMoleculeInfo(guestmoleculeinfo, parameters);
     if (parameters.verbose) printf("Loaded guest molecule information\n");
     
@@ -294,7 +358,7 @@ int main(int argc, char *argv[])
     // + pocket blocking if enabled.
     //
     GridInfo grid_info; // for storing grid info
-    double * energy_grid0; double * energy_grid1; double * energy_grid2; double * energy_grid3;
+    double ** energy_grids = (double **) malloc(parameters.nuniquebeads * sizeof(double *));
     bool pocket_block_verbose_mode = false; // writes grid before and after
     for (int n_c = 0; n_c < parameters.nuniquebeads; n_c ++) {
         int N_x_temp, N_y_temp, N_z_temp;
@@ -325,28 +389,14 @@ int main(int argc, char *argv[])
         }
 
         // create grid import format
-        if (n_c == 0)
-            energy_grid0 = (double *) calloc(grid_info.numtotalpts, sizeof(double));
-        if (n_c == 1)
-            energy_grid1 = (double *) calloc(grid_info.numtotalpts, sizeof(double));
-        if (n_c == 2)
-            energy_grid2 = (double *) calloc(grid_info.numtotalpts, sizeof(double));
-        if (n_c == 3)
-            energy_grid3 = (double *) calloc(grid_info.numtotalpts, sizeof(double));
+        energy_grids[n_c] = (double *) calloc(grid_info.numtotalpts, sizeof(double));
 
         int i = 0; int j = 0;
         while(getline(gridfile,line)) {
             std::istringstream this_line(line);
             for (int k = 0; k < grid_info.N_z; k ++) {  // each line is a pencil of z's
                 int index_here = k + j * grid_info.N_z + i * grid_info.N_y * grid_info.N_z;
-                if (n_c == 0)
-                    this_line >> energy_grid0[index_here];
-                if (n_c == 1)
-                    this_line >> energy_grid1[index_here];
-                if (n_c == 2)
-                    this_line >> energy_grid2[index_here];
-                if (n_c == 3)
-                    this_line >> energy_grid3[index_here];
+                this_line >> energy_grids[n_c][index_here];
             }
             j += 1; // each line is a pencil of z's for a particular y... so update y index
             if (j == grid_info.N_y) {
@@ -372,23 +422,16 @@ int main(int argc, char *argv[])
             if (pocket_block_verbose_mode) {
                 printf("Pocket blocking beginning. Write a cube for before\n");
                 if (n_c == 0)
-                    WriteCube("before_blocking_0", framework, parameters, energy_grid0, grid_info); //just so you can see the grid before ...
+                    WriteCube("before_blocking_0", framework, parameters, energy_grids[0], grid_info); //just so you can see the grid before ...
             }
-            if (n_c == 0)
-                grid_info.numpockets[0] = FindAndBlockPockets(energy_grid0, grid_info, parameters.T, parameters);
-            if (n_c == 1)
-                grid_info.numpockets[1] = FindAndBlockPockets(energy_grid1, grid_info, parameters.T, parameters);
-            if (n_c == 2)
-                grid_info.numpockets[2] = FindAndBlockPockets(energy_grid2, grid_info, parameters.T, parameters);
-            if (n_c == 3)
-                grid_info.numpockets[3] = FindAndBlockPockets(energy_grid3, grid_info, parameters.T, parameters);
+            grid_info.numpockets[n_c] = FindAndBlockPockets(energy_grids[n_c], grid_info, parameters.T, parameters);
             // energy_grid is passed as a poitner, so it is modified now if accessible pockets were there.
             if (pocket_block_verbose_mode) {
                 printf("Pocket blocking finished. Write a cube for after\n");
                 double time_after = ReadTimer();
                 printf("Time spent to find and block pockets: %f s\n", time_after - time_before);
                 if (n_c == 0)
-                    WriteCube("after_blocking_0", framework, parameters, energy_grid0, grid_info); // ... and after pocket blocking
+                    WriteCube("after_blocking_0", framework, parameters, energy_grids[0], grid_info); // ... and after pocket blocking
             }
         }
     }
@@ -398,15 +441,13 @@ int main(int argc, char *argv[])
     //
     GCMCStats stats;
     InitializeGCMCStats(stats);
-    
-    double volume = framework.volume_unitcell * parameters.replication_factor_a * parameters.replication_factor_b * parameters.replication_factor_c; // A ^ 3
-    
     GuestMolecule * guestmolecules = (GuestMolecule *) malloc(MAX_GUESTS * sizeof(GuestMolecule));
     GuestBead * guestbeads = (GuestBead *) malloc(MAX_GUESTS * 2 * sizeof(GuestBead));  // each guest can hv up to two beads
-
-    int * N_g = (int *) calloc(2,sizeof(int)); // initialize current number of guests
+    int * N_g = (int *) calloc(2, sizeof(int)); // initialize current number of guests
     N_g[0] = 0; N_g[1] = 0;
+    int N_beads = 0;  // number of beads
     int N_g_total = 0; // total # guests
+    double volume = framework.volume_unitcell * parameters.replication_factor_a * parameters.replication_factor_b * parameters.replication_factor_c; // A ^ 3
 //  outputfile << "\tSize of guests = " << MAX_GUESTS * sizeof(particle_g) / (1024.0 * 1024.0) << " MB\n";
     
     //
@@ -421,7 +462,7 @@ int main(int argc, char *argv[])
         printf("Random number generator initialized...\n");
 
     //
-    // Write settingsto outputfile
+    // Write settings to outputfile
     //
     FILE * outputfile;
     char outputfilename[512];
@@ -446,47 +487,105 @@ int main(int argc, char *argv[])
 //    adsorbatepositionfile = fopen(positionfilename, "w");
 //    int N_snapshots = 0;
 //
-//    //
-//    //  Run GCMC
-//    //
-//    double start_of_sim_time=ReadTimer();
-//    if (parameters.verbose) printf("Starting simulation...\n");
-//    double E_gg_this_cycle = 0.0; double E_gf_this_cycle = 0.0; // assumes that we start with zero particles
-//    int cycle_counter = 0;
-//    int adsorbate_index_list[2][MAX_GUESTS] = { -1 }; // keep indices of particles here, initialze as -1
-//    
-//    for (int cycle = 0; cycle < parameters.numtrials; cycle++) {
-//        // each cycle corresponds to a number of Markov chain moves defined by ninnercycles
-//        int ninnercycles = (N_g[0] + N_g[1]) > 20 ? (N_g[0] + N_g[1]) : 20; // proportional to number of guests
-//        for (int inner_cycle = 0; inner_cycle < ninnercycles; inner_cycle ++) {
-////          assert(N_g_total == N_g[0] + N_g[1]);
-//            cycle_counter += 1;
-//
-//            double which_move = uniform01(generator); // particle swap or translation?
-//            double rand_for_acceptance = uniform01(generator); // for testing acceptance
-//            int which_type = type_generator(generator); // select adsorbate type 
-//            //
-//            //  MC trail: Insertion
-//            //
-//            if (which_move < parameters.p_exchange / 2.0) {
-//                stats.N_insertion_trials += 1;
-//                
-//                // insertion location @ these fractional coordinates
-//                guests[N_g_total].x_f = uniform01(generator) * parameters.replication_factor_a;
-//                guests[N_g_total].y_f = uniform01(generator) * parameters.replication_factor_b;
-//                guests[N_g_total].z_f = uniform01(generator) * parameters.replication_factor_c;
-//                // what are the Cartesian coords? updat guests array
-//                double x, y, z; 
-//                FractionalToCartesian(parameters.t_matrix, 
-//                                      guests[N_g_total].x_f, guests[N_g_total].y_f, guests[N_g_total].z_f, 
-//                                      x, y, z);
-//                guests[N_g_total].x = x;
-//                guests[N_g_total].y = y;
-//                guests[N_g_total].z = z;
-//                // declare particle type
-//                guests[N_g_total].type = which_type;
-//
-//                // compute energy of this inserted particle
+    //
+    //  Run GCMC
+    //
+    double start_of_sim_time = ReadTimer();
+    if (parameters.verbose) 
+        printf("Starting simulation...\n");
+    double E_gg_this_cycle = 0.0; 
+    double E_gf_this_cycle = 0.0; // assumes that we start with zero particles
+    int cycle_counter = 0;
+
+    // In this list, store index in guestmolecules that each guest type has
+    int guestmolecule_index_list[2][MAX_GUESTS] = { -1 }; // keep indices of particles here, initialze as -1
+
+//    printf("Guest framework energy (.2,.2,.3)=%f\n", 
+//        BeadFrameworkEnergy(WrapToInterval(.2, 1.0),
+//                                    WrapToInterval(.2, 1.0),
+//                                    WrapToInterval(.2, 1.0),
+//                                    grid_info, energy_grids[1]));
+    
+    for (int cycle = 0; cycle < parameters.numtrials; cycle++) {
+        // each cycle corresponds to a number of Markov chain moves defined by ninnercycles
+        int ninnercycles = N_g_total > 20 ? N_g_total : 20; // proportional to number of guests
+        for (int inner_cycle = 0; inner_cycle < ninnercycles; inner_cycle ++) {
+//          assert(N_g_total == N_g[0] + N_g[1]);
+            cycle_counter += 1;
+            
+            // generate random numbers
+            double whichMCmove = uniform01(generator); // Insertion, deletion, translation, ID swap, or regrow?
+            double rand_for_acceptance = uniform01(generator); // for testing acceptance
+            int which_type = type_generator(generator); // select guest type 
+            if (guestmoleculeinfo[which_type].nbeads > 1) {
+                // generate randomly distributed point on a sphere
+                // http://mathworld.wolfram.com/SpherePointPicking.html
+                double theta = 2 * M_PI * uniform01(generator);
+                double phi = acos(2 * uniform01(generator) - 1);
+            }
+                
+            
+            //
+            //  MC trial: Insertion
+            //
+            if (whichMCmove < parameters.p_exchange / 2.0) {
+                stats.N_insertion_trials += 1;
+
+                // add new guest, declare particle type
+                guestmolecules[N_g_total].type = which_type;
+                
+                // insert first bead @ these fractional coordinates
+                guestmolecules[N_g_total].beadID[0] = N_beads;
+                guestbeads[N_beads].x_f = uniform01(generator) * parameters.replication_factor_a;
+                guestbeads[N_beads].y_f = uniform01(generator) * parameters.replication_factor_b;
+                guestbeads[N_beads].z_f = uniform01(generator) * parameters.replication_factor_c;
+                // what are the Cartesian coords? updat guests array
+                double x, y, z; 
+                FractionalToCartesian(parameters.t_matrix, 
+                                      guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guests[N_beads].z_f, 
+                                      x, y, z);
+                guestbeads[N_beads].x = x; 
+                guestbeads[N_beads].y = y; 
+                guestbeads[N_beads].z = z; 
+
+                // add second bead if not LJ sphere
+                if (guestmoleculeinfo[which_type].nbeads > 1) {
+                    // generate Cartesian coords of second bead
+                    x = guestbeads[N_beads].x + guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
+                    y = guestbeads[N_beads].y + guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
+                    z = guestbeads[N_beads].z + guestmoleculeinfo[which_type].bondlength * cos(phi);
+
+                    // convert to fractional to make sure we are inside bounding box
+                    double x_f, y_f, z_f;
+                    CartesianToFractional(parameters.inv_t_matrix, 
+                                          x_f, y_f, z_f, 
+                                          x, y, z);
+                     
+                    if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
+                        // wrap to bounding box
+                        x_f = WrapToInterval(x_f, parameters.replication_factor_a);
+                        y_f = WrapToInterval(y_f, parameters.replication_factor_b);
+                        z_f = WrapToInterval(z_f, parameters.replication_factor_c);
+
+                        // recompute Cartesian coords
+                        FractionalToCartesian(parameters.t_matrix, 
+                                              x_f, y_f, z_f, 
+                                              x, y, z);
+                    }
+                     
+                    // assign coords
+                    guestbeads[N_beads + 1].x_f = x_f;
+                    guestbeads[N_beads + 1].y_f = y_f;
+                    guestbeads[N_beads + 1].z_f = z_f;
+                    guestbeads[N_beads + 1].x = x;
+                    guestbeads[N_beads + 1].y = y;
+                    guestbeads[N_beads + 1].z = z;
+                    
+                    // add this bead to guests
+                    guestmolecules[N_g_total].beadID[1] = N_beads + 1;
+                }
+
+                // compute energy of this inserted particle
 //                double energy_gf = 1e6;
 //                if (which_type == 0)
 //                    energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[N_g_total].x_f , 1.0),WrapToInterval(guests[N_g_total].y_f , 1.0), WrapToInterval(guests[N_g_total].z_f ,1.0),
@@ -524,7 +623,7 @@ int main(int argc, char *argv[])
 //            //
 //            //  MC trial: deletion 
 //            //
-//            else if (which_move < parameters.p_exchange)
+//            else if (whichMCmove < parameters.p_exchange)
 //            {
 //                if (parameters.debugmode) std::cout << "Deletion Trial." << std::endl;
 //
@@ -590,7 +689,7 @@ int main(int argc, char *argv[])
 //            //
 //            //  MC trial:  Translation
 //            //
-//            else if (which_move < parameters.p_exchange + parameters.p_move) {
+//            else if (whichMCmove < parameters.p_exchange + parameters.p_move) {
 //                if (parameters.debugmode) 
 //                    printf("Translation Trial.\n");
 //                stats.N_move_trials += 1;
@@ -677,7 +776,7 @@ int main(int argc, char *argv[])
 //            //
 //            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
 //            //
-//            else if (which_move < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
+//            else if (whichMCmove < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
 //                if (N_g[which_type] > 0) { // if there are paricles of this type in the system
 //                    stats.N_ID_swap_trials += 1;
 //
