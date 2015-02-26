@@ -8,6 +8,7 @@
 #ifndef DATATYPESs_H_
 #define DATATYPESs_H_
 #include<string>
+#include<vector>
 
 struct TripleInt {
     int arg1, arg2, arg3;
@@ -27,8 +28,7 @@ struct FrameworkParticle {
    // double reduced_mass; // for Feynman Hibbs
 };
 
-struct GuestParticle { 
-// for guests particles
+struct GuestBead {  // a Lennard-Jones sphere
     // Cartesian coords
     double x;
     double y;
@@ -37,8 +37,24 @@ struct GuestParticle {
     double x_f;
     double y_f;
     double z_f;
+    // ID of bead in force field
+    int type;
+};
+
+struct GuestMolecule {   // a molecule is made of beads
+    // for guest adsorbate
+    int beadID[2]; // ID of beads in the Guest (supports two right now)
     // adsorbate identity
     int type;
+};
+
+struct GuestMoleculeInfo {  // for setting up simulations
+    std::string type;  // name..
+    int nbeads;  // number of LJ spheres
+    int beadtypes[2];  // type of bead  (int ID)
+//    char ** beadlabels;
+    std::string beadlabels[2];  //  (corresponds to force field labels)
+    double bondlength;  // (A) bond length if applicable (n_beads =2)
 };
 
 struct HenryParameters {
@@ -120,7 +136,7 @@ struct GCMCParameters {
     double T; // temperature (K)
     double delta; // spatial step in moves
     int numtrials, samplefrequency, numequilibriumtrials; // sample every X MC moves, burn period equilibrium_trials
-    double p_move; double p_exchange; double p_identity_change; // probability of a move and exchange with bath(delete/insert). or identity change for dual component only
+    double p_move, p_exchange, p_identity_change, p_regrow; // probability of a move(translation) and exchange with bath(delete/insert). or identity change for dual component only
 
     // These are given as arguments to binary gcmc
     std::string frameworkname;
@@ -128,8 +144,10 @@ struct GCMCParameters {
     int numadsorbates; // number of adsorbates
     double fugacity[2];
 
-    // This must be read from force field object
-    double epsilon_matrix[2][2]; double sigma_squared_matrix[2][2]; // pure sigma, epsilon for adsorbate
+    // This must be read from force field object. Could be up to 4 if all different bead types
+    double epsilon_matrix[4][4]; double sigma_squared_matrix[4][4]; // pure sigma, epsilon for adsorbate
+    int nuniquebeads;  // number of unique beads in the guest molecules
+    std::string uniquebeadlist[4];  // store the labels of the unique beads in the FF here 
 
     // this is read from the masses.def file
     double adsorbateMW[2];
@@ -156,7 +174,7 @@ struct GridInfo {
     int N_x, N_y, N_z;
     double dx_f, dy_f, dz_f;
     int numtotalpts;
-    int numpockets[2]; // if pocket blocking...
+    int numpockets[4]; // if pocket blocking...
 };
 
 struct HenryStats
@@ -175,10 +193,12 @@ struct GCMCStats
     int N_deletion_trials;
     int N_move_trials;
     int N_ID_swap_trials;
+    int N_regrow_trials;
     // count accepted monte carlo trials 
     int N_insertions;
     int N_deletions;
     int N_moves;
+    int N_regrows;
     int N_ID_swaps;
     // count samples
     int N_samples;

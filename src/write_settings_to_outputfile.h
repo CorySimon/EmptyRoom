@@ -192,7 +192,8 @@ void WriteSettingsToOutputfile(FILE * outputfile,
         GCMCParameters parameters,
         Framework framework,
         Forcefield forcefield,
-        GridInfo grid_info) 
+        GridInfo grid_info,
+        GuestMoleculeInfo * guestmoleculeinfo) 
 {
     //
     // Write date
@@ -206,13 +207,21 @@ void WriteSettingsToOutputfile(FILE * outputfile,
 
     // adsorbate information
     fprintf(outputfile, "Number of adsorbates: %d\n", parameters.numadsorbates);
-    for (int i = 0; i < parameters.numadsorbates; i ++)
-        fprintf(outputfile, "    %s, molecular weight = %f\n\n", parameters.adsorbate[i].c_str(), parameters.adsorbateMW[i]);
+    for (int i = 0; i < parameters.numadsorbates; i ++) {
+        fprintf(outputfile, "    Adsorbate %s\n", parameters.adsorbate[i].c_str());
+        fprintf(outputfile, "        molecular weight = %f\n", parameters.adsorbateMW[i]);
+        fprintf(outputfile, "        number of beads: %d\n", guestmoleculeinfo[i].nbeads);
+        for (int b = 0; b < guestmoleculeinfo[i].nbeads; b++)
+            fprintf(outputfile, "          %s, bead type ID %d\n", guestmoleculeinfo[i].beadlabels[b].c_str(), guestmoleculeinfo[i].beadtypes[b]);
+        if (guestmoleculeinfo[i].nbeads > 1)
+            fprintf(outputfile, "        bond length = %f A\n", guestmoleculeinfo[i].bondlength);
+    }
+
 
     //
     // Structure information
     //
-    fprintf(outputfile, "Structure: %s\n", framework.name.c_str());
+    fprintf(outputfile, "\nStructure: %s\n", framework.name.c_str());
     fprintf(outputfile, "    Crystal density (kg/m3): %f\n", framework.density);
     fprintf(outputfile, "    a = %f A; b = %f A; c = %f A\n    alpha = %f, beta = %f, gamma = %f\n",
             framework.a, framework.b, framework.c,
@@ -249,10 +258,24 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     // Forcefield information
     //
     fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
-    for (int i = 0; i < parameters.numadsorbates; i ++)
-        fprintf(outputfile, "    %s-%s: epsilon = %f K, sigma = %f A\n", parameters.adsorbate[i].c_str(), parameters.adsorbate[i].c_str(), parameters.epsilon_matrix[i][i], sqrt(parameters.sigma_squared_matrix[i][i]));
-    if (parameters.numadsorbates == 2)
-        fprintf(outputfile, "    %s-%s: epsilon = %f K, sigma = %f A\n", parameters.adsorbate[0].c_str(), parameters.adsorbate[1].c_str(), parameters.epsilon_matrix[0][1], sqrt(parameters.sigma_squared_matrix[1][0]));
+    fprintf(outputfile, "    Pure bead interactions:\n");
+    for (int i = 0; i < parameters.nuniquebeads; i ++)
+        fprintf(outputfile, "      %s-%s: epsilon = %f K, sigma = %f A\n", 
+                           parameters.uniquebeadlist[i].c_str(), parameters.uniquebeadlist[i].c_str(), 
+                           parameters.epsilon_matrix[i][i], sqrt(parameters.sigma_squared_matrix[i][i]));
+    if (parameters.nuniquebeads == 2) {
+        fprintf(outputfile, "    Mixed bead interactions:\n");
+        for (int bx = 0; bx < parameters.nuniquebeads; bx++) {
+            for (int by = 0; by < bx; by++) {
+                fprintf(outputfile, "      %s-%s: epsilon = %f K, sigma = %f A\n", 
+                           parameters.uniquebeadlist[bx].c_str(), parameters.uniquebeadlist[by].c_str(), 
+                           parameters.epsilon_matrix[bx][by], sqrt(parameters.sigma_squared_matrix[bx][by]));
+
+            assert(parameters.sigma_squared_matrix[bx][by] == parameters.sigma_squared_matrix[by][bx]);  // symmetry
+            assert(parameters.epsilon_matrix[bx][by] == parameters.epsilon_matrix[by][bx]);  // symmetry
+            }
+        }
+    }
 
     //
     // GCMC simulation settings
@@ -265,6 +288,7 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "    Prob(particle exchange): %f\n", parameters.p_exchange);
     fprintf(outputfile, "    Prob(particle translation): %f\n", parameters.p_move);
     fprintf(outputfile, "    Prob(particle ID swap): %f\n", parameters.p_identity_change);
+    fprintf(outputfile, "    Prob(regrow): %f\n", parameters.p_regrow);
 
 
     //

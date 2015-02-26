@@ -1,0 +1,24 @@
+CC = g++
+CFLAGS = -O3 -arch sm_20 g
+NVCCFLAGS = -g -O3 -arch sm_20
+LIBS = -lm
+
+all: gcmc
+
+gcmc: Framework.o Forcefield.o pocketblocking.o gcmc.o 
+	$(CC) -o $@ Framework.o Forcefield.o pocketblocking.o gcmc.o 
+
+pocketblocking.o: pocketblocking.cc
+	$(CC) -c pocketblocking.cc
+
+gcmc.o: gcmc.cc
+	$(CC) -c gcmc.cc -std=c++11
+
+Framework.o: Framework.cc
+	$(CC) -c Framework.cc
+
+Forcefield.o: Forcefield.cc
+	$(CC) -c Forcefield.cc
+
+clean: 
+	rm *.o 
