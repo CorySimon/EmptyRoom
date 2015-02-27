@@ -168,7 +168,6 @@ double GuestGuestEnergy(int N_g,
 }
 
 double TotalGuestGuest(int N_g,
-                        int guestmoleculeid, 
                         GuestMoleculeInfo * guestmoleculeinfo,
                         GuestMolecule * guestmolecules,
                         GuestBead * guestbeads,
@@ -177,7 +176,7 @@ double TotalGuestGuest(int N_g,
     double E_gg = 0.0;
     for (int i = 0; i < N_g; i ++) {
         E_gg += GuestGuestEnergy(N_g,
-                        guestmoleculeid, 
+                        i, 
                         guestmoleculeinfo,
                         guestmolecules,
                         guestbeads,
@@ -424,8 +423,10 @@ int main(int argc, char *argv[])
                 if (n_c == 0)
                     WriteCube("before_blocking_0", framework, parameters, energy_grids[0], grid_info); //just so you can see the grid before ...
             }
+
+            // pass energy grid to FindAndBlockPockets, which will do the job.
             grid_info.numpockets[n_c] = FindAndBlockPockets(energy_grids[n_c], grid_info, parameters.T, parameters);
-            // energy_grid is passed as a poitner, so it is modified now if accessible pockets were there.
+            
             if (pocket_block_verbose_mode) {
                 printf("Pocket blocking finished. Write a cube for after\n");
                 double time_after = ReadTimer();
@@ -517,11 +518,12 @@ int main(int argc, char *argv[])
             double whichMCmove = uniform01(generator); // Insertion, deletion, translation, ID swap, or regrow?
             double rand_for_acceptance = uniform01(generator); // for testing acceptance
             int which_type = type_generator(generator); // select guest type 
+            double theta, phi;  // angles on sphere for two bead molecule
             if (guestmoleculeinfo[which_type].nbeads > 1) {
                 // generate randomly distributed point on a sphere
                 // http://mathworld.wolfram.com/SpherePointPicking.html
-                double theta = 2 * M_PI * uniform01(generator);
-                double phi = acos(2 * uniform01(generator) - 1);
+                theta = 2 * M_PI * uniform01(generator);
+                phi = acos(2 * uniform01(generator) - 1);
             }
                 
             
@@ -534,19 +536,22 @@ int main(int argc, char *argv[])
                 // add new guest, declare particle type
                 guestmolecules[N_g_total].type = which_type;
                 
-                // insert first bead @ these fractional coordinates
+                // add this bead to guests
                 guestmolecules[N_g_total].beadID[0] = N_beads;
+                // insert first bead @ these fractional coordinates
                 guestbeads[N_beads].x_f = uniform01(generator) * parameters.replication_factor_a;
                 guestbeads[N_beads].y_f = uniform01(generator) * parameters.replication_factor_b;
                 guestbeads[N_beads].z_f = uniform01(generator) * parameters.replication_factor_c;
                 // what are the Cartesian coords? updat guests array
                 double x, y, z; 
                 FractionalToCartesian(parameters.t_matrix, 
-                                      guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guests[N_beads].z_f, 
+                                      guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guestbeads[N_beads].z_f, 
                                       x, y, z);
                 guestbeads[N_beads].x = x; 
                 guestbeads[N_beads].y = y; 
                 guestbeads[N_beads].z = z; 
+                // define which guest this bead belongs to
+                guestbeads[N_beads].guestmoleculeID = N_g_total;
 
                 // add second bead if not LJ sphere
                 if (guestmoleculeinfo[which_type].nbeads > 1) {
@@ -580,112 +585,150 @@ int main(int argc, char *argv[])
                     guestbeads[N_beads + 1].x = x;
                     guestbeads[N_beads + 1].y = y;
                     guestbeads[N_beads + 1].z = z;
+                    // define which guest this bead belongs to
+                    guestbeads[N_beads + 1].guestmoleculeID = N_g_total;
                     
                     // add this bead to guests
                     guestmolecules[N_g_total].beadID[1] = N_beads + 1;
                 }
 
                 // compute energy of this inserted particle
-//                double energy_gf = 1e6;
-//                if (which_type == 0)
-//                    energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[N_g_total].x_f , 1.0),WrapToInterval(guests[N_g_total].y_f , 1.0), WrapToInterval(guests[N_g_total].z_f ,1.0),
-//                                    grid_info, energy_grid0);
-//                if (which_type == 1)
-//                    energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[N_g_total].x_f , 1.0),WrapToInterval(guests[N_g_total].y_f , 1.0), WrapToInterval(guests[N_g_total].z_f ,1.0),
-//                                    grid_info, energy_grid1);
-//                double energy_gg = GuestGuestEnergy(N_g_total, N_g_total, guests, parameters);
-//                double E_insertion = energy_gf + energy_gg;
-//
-//                // accept, loosely, if energetically favorable
-//                double acceptance_insertion = parameters.fugacity[which_type] * volume / ((N_g[which_type] + 1) * 1.3806488e7 * parameters.T) * exp(-E_insertion / parameters.T);
-//                if (parameters.debugmode) {
-//                    std::cout << "Adsorbate id list: ";
-//                    for (int ad = 0 ; ad < N_g[0] ; ad++)
-//                         std::cout << adsorbate_index_list[0][ad] << std::endl;
-//                    printf("\tProposal to insert at xf=%f,yf=%f,zf=%f\n.",guests[N_g_total].x_f,guests[N_g_total].y_f,guests[N_g_total].z_f);
-//                    std::cout << "\tE_gg = " << energy_gg << std::endl;
-//                    std::cout << "\tE_gf = " << energy_gf << std::endl;
-//                    std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
-//                }
-//                if (rand_for_acceptance < acceptance_insertion) {  // accept insertion move
-//                    if (parameters.debugmode) 
-//                        printf("\tInsertion accepted.\n");
-//                    stats.N_insertions += 1;
-//                    if (energy_gf > 1e6)
-//                        std::cout << "Insertion accepted with huge energy" << std::endl;
-//                    // add adsorbate guests index to adsorbate_index_list
-//                    adsorbate_index_list[which_type][N_g[which_type]] = N_g_total;
-//                    N_g[which_type] += 1;
-//                    N_g_total += 1;
-//                    E_gg_this_cycle += energy_gg; E_gf_this_cycle += energy_gf;
-//                }
-//            }
-//            //
-//            //  MC trial: deletion 
-//            //
-//            else if (whichMCmove < parameters.p_exchange)
-//            {
-//                if (parameters.debugmode) std::cout << "Deletion Trial." << std::endl;
-//
-//                stats.N_deletion_trials += 1;
-//                if (N_g[which_type] > 0) {
-//                    // set new range for uniform int generator.
-//                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1);
-//                    uniformint.param(new_range);
-//
-//                    // select idx of guest to delete in adsorbate_index_list
-//                    int idx_delete_type = uniformint(generator); 
-////                  assert(idx_delete_type < N_g[which_type]);
-//                    int idx_delete = adsorbate_index_list[which_type][idx_delete_type]; // corresponding global ID in guests
-//                    if (idx_delete >= N_g_total) {
-//                        printf("Idx delete %d, N_g %d, Ng total %d,idx delete type %d\n",idx_delete,N_g[which_type],N_g_total,idx_delete_type);
-//                        printf("adsorbate index list: ");
-//                        for (int ad = 0 ; ad < N_g[0] ; ad++)
-//                         std::cout << adsorbate_index_list[0][ad] << std::endl;
-//                    }
-////                  assert(idx_delete < N_g_total);
-//
-//                    // compute energy of this guest that we propose to delete
-//                    double energy_gf = 1e6;
-//                    if (which_type == 0)
-//                        energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[idx_delete].x_f , 1.0),WrapToInterval(guests[idx_delete].y_f , 1.0), WrapToInterval(guests[idx_delete].z_f ,1.0),
-//                                        grid_info, energy_grid0);
-//                    if (which_type == 1)
-//                        energy_gf = GuestFrameworkEnergy(WrapToInterval(guests[idx_delete].x_f , 1.0),WrapToInterval(guests[idx_delete].y_f , 1.0), WrapToInterval(guests[idx_delete].z_f ,1.0),
-//                                        grid_info, energy_grid1);
-//                    double energy_gg = GuestGuestEnergy(N_g_total, idx_delete, guests, parameters);
-//                    double E_deletion = energy_gf + energy_gg;
-//
-//                    // accept deletion if, loosely, energetically favorable
-//                    double acceptance_del = (N_g[which_type] * 1.3806488e7 * parameters.T) / (parameters.fugacity[which_type] * volume) * exp(E_deletion / parameters.T);
-//                    if (rand_for_acceptance < acceptance_del) {
-//                        if (energy_gf > 1e6) {
-//                            std::cout << "Deletion accepted with huge energy" << std::endl;
-//                            printf("N_g = %d, energy_gg = %f, idx_delete = %d, idx_delete_type = %d, N_g1 = %d\n", N_g[0],energy_gg,idx_delete, idx_delete_type,N_g[1]);
-//                        }
-//                        stats.N_deletions += 1;
-//                        
-//                        // move last particle to here
-//                        guests[idx_delete] = guests[N_g_total - 1];
-//                        // if delete adsorbate in the middle of adsorbate_index_list, move the last one here so we see it.
-//                        adsorbate_index_list[which_type][idx_delete_type] = adsorbate_index_list[which_type][N_g[which_type] - 1];
-//                        // also we moved the last guest to the middle... find this!
-//                        for (int orz = 0 ; orz < N_g[guests[N_g_total - 1].type] ; orz ++) {
-//                            if (adsorbate_index_list[guests[N_g_total-1].type][orz] == N_g_total - 1) {
-//                                adsorbate_index_list[guests[N_g_total-1].type][orz] = idx_delete; //now this one is at idx_delete
-//                                break;
-//                            }
-//                        }
-//
-//                        N_g[which_type] -= 1;
-//                        N_g_total -= 1;
-//                        E_gg_this_cycle -= energy_gg; E_gf_this_cycle -= energy_gf;
-//                        if (parameters.debugmode) {
-//                            std::cout << "Deletion accepted with probability " << acceptance_del << std::endl;
-//                        }
-//                    }
-//                }
-//            }
+                double E_gf = GuestFrameworkEnergy(N_g_total, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            grid_info,
+                            energy_grids);  // framework-guest
+                double E_gg = GuestGuestEnergy(N_g_total,
+                        N_g_total, 
+                        guestmoleculeinfo,
+                        guestmolecules,
+                        guestbeads,
+                        parameters);  // guest-guest
+                double E_insertion = E_gf + E_gg;
+                
+                // accept, loosely, if energetically favorable
+                double acceptance_insertion = parameters.fugacity[which_type] * volume / ((N_g[which_type] + 1) * 1.3806488e7 * parameters.T) * exp(-E_insertion / parameters.T);
+                if (rand_for_acceptance < acceptance_insertion) {  
+                    if (parameters.debugmode) 
+                        printf("\tInsertion accepted.\n");
+
+                    stats.N_insertions += 1;
+                    if (E_insertion > 1e6)
+                        std::cout << "Insertion accepted with huge energy" << std::endl;
+                    // add adsorbate guests index to guestmolecule_index_list
+                    guestmolecule_index_list[which_type][N_g[which_type]] = N_g_total;
+                    // update molecule and bead count
+                    N_g[which_type] += 1;
+                    N_g_total += 1;
+                    N_beads += guestmoleculeinfo[which_type].nbeads;
+                    // update system energies
+                    E_gg_this_cycle += E_gg; 
+                    E_gf_this_cycle += E_gf;
+                }
+                
+                // for debug mode, print stuff off
+                if (parameters.debugmode) {
+                    std::cout << "Adsorbate id list: ";
+                    for (int ad = 0 ; ad < N_g[0] ; ad++)
+                         std::cout << guestmolecule_index_list[0][ad] << std::endl;
+                    printf("\tProposal to insert first bead at xf=%f,yf=%f,zf=%f\n.", 
+                                guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guestbeads[N_beads].z_f);
+                    if (guestmoleculeinfo[which_type].nbeads > 1)
+                        printf("\tProposal to insert second bead at xf=%f,yf=%f,zf=%f\n.", 
+                                    guestbeads[N_beads+1].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f);
+                    std::cout << "\tE_gg = " << E_gg << std::endl;
+                    std::cout << "\tE_gf = " << E_gf << std::endl;
+                    std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
+                }
+                
+            }
+            //
+            //  MC trial: deletion 
+            //
+            else if (whichMCmove < parameters.p_exchange)
+            {
+                if (parameters.debugmode) 
+                    printf("Deletion Trial.\n");
+                stats.N_deletion_trials += 1;
+                
+                if (N_g[which_type] > 0) {
+                    // set new range for uniform int generator [0 - # of this type of guest - 1]
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1);
+                    uniformint.param(new_range);
+
+                    // randomly select guest of this type to propose to delete
+                    int idx_thisguesttype = uniformint(generator);  // index in guestmolecule_index_list
+                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_thisguesttype]; // corresponding global ID in guests
+                    assert(idx_guestmolecule < N_g_total);
+                    
+                    // compute energy of this guest that we propose to delete
+                    double E_gf = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_deletion = E_gf + E_gg;
+                    
+                    // accept deletion if, loosely, energetically favorable
+                    double acceptance_del = (N_g[which_type] * 1.3806488e7 * parameters.T) / (parameters.fugacity[which_type] * volume) * exp(E_deletion / parameters.T);
+                    if (rand_for_acceptance < acceptance_del) {
+                        stats.N_deletions += 1;
+                        
+                        if (E_deletion > 1e6) {
+                            std::cout << "Deletion accepted with huge energy" << std::endl;
+                            printf("N_g = %d, energy_gg = %f, idx_delete = %d, idx_delete_type = %d, N_g1 = %d\n", N_g[0], E_gg,idx_guestmolecule, idx_thisguesttype, N_g[1]);
+                        }
+                        
+                        // replace this deleted guest's beads with the beads at the end of guestbeads
+                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                            int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                            // move last bead to here
+                            guestbeads[beadid] = guestbeads[N_beads - 1 - b];
+                            int otherguestmoleculeid =  guestbeads[N_beads - 1 - b].guestmoleculeID;
+                            // change beadID in this other guest molecule to beadID
+                            bool found = false;
+                            for (int bi = 0; bi < guestmoleculeinfo[guestmolecules[otherguestmoleculeid].type].nbeads; bi++) {
+                                if (guestmolecules[otherguestmoleculeid].beadID[bi] == N_beads - 1 - b) {
+                                    guestmolecules[guestbeads[N_beads - 1 - b].guestmoleculeID].beadID[bi] = beadid;
+                                    found = true;
+                                }
+                            }
+                            assert(found == true); // TODO remove later, for checking
+                        }
+                        // move last guest molecule to here
+                        guestmolecules[idx_guestmolecule] = guestmolecules[N_g_total - 1];
+                        // if delete adsorbate in the middle of guestmolecule_index_list, move the last one here so we see it.
+                        guestmolecule_index_list[which_type][idx_thisguesttype] = guestmolecule_index_list[which_type][N_g[which_type] - 1];
+                        // also we moved the last guest to the middle... find this!
+                        for (int orz = 0 ; orz < N_g[guestmolecules[N_g_total - 1].type]; orz ++) {
+                            if (guestmolecule_index_list[guestmolecules[N_g_total-1].type][orz] == N_g_total - 1) {
+                                //now this one is at idx_guestmolecule
+                                guestmolecule_index_list[guestmolecules[N_g_total-1].type][orz] = idx_guestmolecule; 
+                                break;
+                            }
+                        }
+                        
+                        // update guest and bead counts
+                        N_g[which_type] -= 1;
+                        N_g_total -= 1;
+                        N_beads -= guestmoleculeinfo[guestmolecules[idx_guestmolecule].type].nbeads;
+                        // update system energies
+                        E_gg_this_cycle -= E_gg; 
+                        E_gf_this_cycle -= E_gf;
+                        if (parameters.debugmode) {
+                            std::cout << "Deletion accepted with probability " << acceptance_del << std::endl;
+                        }
+                    }
+                }
+            }
 //            //
 //            //  MC trial:  Translation
 //            //
@@ -700,7 +743,7 @@ int main(int argc, char *argv[])
 //                    uniformint.param(new_range);
 //                    int idx_move_type = uniformint(generator);
 ////                  assert(idx_move_type < N_g[which_type]);
-//                    int idx_move = adsorbate_index_list[which_type][idx_move_type]; // global ID in guests
+//                    int idx_move = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests
 ////                  assert(idx_move < N_g_total);
 //                    
 //                    // compute energy in current (old) position
@@ -784,7 +827,7 @@ int main(int argc, char *argv[])
 //                    decltype(uniformint.param()) new_range (0, N_g[which_type] - 1); // set new range for rng
 //                    uniformint.param(new_range);
 //                    int idx_type = uniformint(generator); // which of this component?
-//                    int idx = adsorbate_index_list[which_type][idx_type]; // global index of this component
+//                    int idx = guestmolecule_index_list[which_type][idx_type]; // global index of this component
 ////                  assert(guests[idx].type == which_type);
 //
 //                    // get energy difference with current ID
@@ -818,8 +861,8 @@ int main(int argc, char *argv[])
 //                        if (which_type == 1) // if changed to a zero
 //                            E_gf_this_cycle += energy_gf_0 - energy_gf_1;
 //                        // deal with adorbate ID list
-//                        adsorbate_index_list[which_type][idx_type] = adsorbate_index_list[which_type][N_g[which_type] - 1]; // move last one of which_type to here, this one is deleted.
-//                        adsorbate_index_list[new_type][N_g[new_type]] = idx; // now this index is part of the other component ID
+//                        guestmolecule_index_list[which_type][idx_type] = guestmolecule_index_list[which_type][N_g[which_type] - 1]; // move last one of which_type to here, this one is deleted.
+//                        guestmolecule_index_list[new_type][N_g[new_type]] = idx; // now this index is part of the other component ID
 //                        // update particle numbers
 //                        N_g[which_type] -= 1; // one less of which type
 //                        N_g[new_type] += 1; // one more of new type
@@ -842,7 +885,7 @@ int main(int argc, char *argv[])
 //                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
 //                    uniformint.param(new_range);
 //                    int idx_move_type = uniformint(generator);
-//                    int idx_move = adsorbate_index_list[which_type][idx_move_type]; // global ID in guests particle array
+//                    int idx_move = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests particle array
 //                    
 //                    // compute energy in current (old) position
 //                    double energy_gf_old = 0.0;
@@ -907,22 +950,24 @@ int main(int argc, char *argv[])
 //                }
 //            }
 //
-//            // assert N_g < MAX_GUESTS
-//            if (N_g_total >= MAX_GUESTS - 2) {
-//                printf("N_g > MAX_GUESTS!!!\n");
-//                exit(EXIT_FAILURE);
-//            }
-//
-//            //
-//            // Collect statistics
-//            //
-//            if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.samplefrequency == 0)) {
-//                stats.N_samples += 1;
-//                stats.N_g_avg[0] += N_g[0]; stats.N_g_avg[1] += N_g[1];
-//                stats.N_g2_avg[0] += N_g[0] * N_g[0]; stats.N_g2_avg[1] += N_g[1] * N_g[1];
-//                stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
-//                stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
-//            }
+            // assert N_g < MAX_GUESTS
+            if (N_g_total >= MAX_GUESTS - 2) {
+                printf("N_g > MAX_GUESTS!\n");
+                exit(EXIT_FAILURE);
+            }
+
+            //
+            // Collect statistics
+            //
+            if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.samplefrequency == 0)) {
+                stats.N_samples += 1;
+                stats.N_g_avg[0] += N_g[0]; 
+                stats.N_g_avg[1] += N_g[1];
+                stats.N_g2_avg[0] += N_g[0] * N_g[0]; 
+                stats.N_g2_avg[1] += N_g[1] * N_g[1];
+                stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
+                stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
+            }
 //            
 //            //
 //            // Write adsorbate positions to file
@@ -945,51 +990,60 @@ int main(int argc, char *argv[])
 //            }
 //
 //
-//        } // end inner cycle
+        }  // end inner cycle loop
 //
-//    }
-//    
-//    // take avg
-//    stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
-//    stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
-//
-//    double sim_time = ReadTimer()-start_of_sim_time;
-//    fprintf(outputfile, "\nEnergy checks\n");
-//    // check energy calcs
-//    double E_gg_system = GuestGuestTotalEnergy(N_g[0] + N_g[1], guests, parameters);
-//    double E_gf_system = GuestFrameworkTotalEnergy(N_g[0] + N_g[1], energy_grid0, energy_grid1, guests, grid_info);
-//    fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
-//    fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
-//    fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);
-//    fprintf(outputfile, "    E_gf from adding dE's throughout simulation: %f K\n", E_gf_this_cycle);
-//    
-//    // write stats
-//    fprintf(outputfile, "\nGCMC Statistics\n");
-//    fprintf(outputfile, "    Simulation time: %f min\n", sim_time / 60.0);
-//    fprintf(outputfile, "    Insertions: %d / %d\n", stats.N_insertions, stats.N_insertion_trials);
-//    fprintf(outputfile, "    Deletions: %d / %d\n", stats.N_deletions, stats.N_deletion_trials);
-//    fprintf(outputfile, "    Moves: %d / %d\n", stats.N_moves, stats.N_move_trials);
-//    fprintf(outputfile, "    ID swaps: %d / %d\n", stats.N_ID_swaps, stats.N_ID_swap_trials);
-//    fprintf(outputfile, "    Regrows: %d / %d\n", stats.N_regrows, stats.N_regrow_trials);
-//    fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
-//    
-//    // write loadings
-//    for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
-//        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
-//        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
-//        double N_confidence_bound = sqrt(stats.N_g2_avg[n_c] - stats.N_g_avg[n_c] * stats.N_g_avg[n_c])/sqrt(1.0 * stats.N_samples); // sigma / sqrt(N)
-//
-//        fprintf(outputfile, "\n    Adsorbate: %s\n", parameters.adsorbate[n_c].c_str());
-//        fprintf(outputfile, "        Fugacity = %f Pa\n", parameters.fugacity[n_c]);
-//        fprintf(outputfile, "        <N_g> (%s) = %f +/- %f molecules/ unit cell\n", parameters.adsorbate[n_c].c_str(), 1.0 * stats.N_g_avg[n_c] / parameters.replication_factor_a / parameters.replication_factor_b / parameters.replication_factor_c, N_confidence_bound);
-//        fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
-//        fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c]/volume/6.022e-7/framework.density);
-//    }
-//    fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
-//    fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
-//
+    }  // end outer cycle loop
+    
+    // take avg
+    stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
+    stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
+
+    double sim_time = ReadTimer() - start_of_sim_time;
+    fprintf(outputfile, "\nEnergy checks\n");
+    // check energy calcs
+    double E_gg_system = TotalGuestGuest(N_g_total,
+                        guestmoleculeinfo,
+                        guestmolecules,
+                        guestbeads,
+                        parameters);
+    double E_gf_system = TotalGuestFrameworkEnergy(N_g_total, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            grid_info,
+                            energy_grids);
+    fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
+    fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
+    fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);
+    fprintf(outputfile, "    E_gf from adding dE's throughout simulation: %f K\n", E_gf_this_cycle);
+    
+    // write stats
+    fprintf(outputfile, "\nGCMC Statistics\n");
+    fprintf(outputfile, "    Simulation time: %f min\n", sim_time / 60.0);
+    fprintf(outputfile, "    Insertions: %d / %d\n", stats.N_insertions, stats.N_insertion_trials);
+    fprintf(outputfile, "    Deletions: %d / %d\n", stats.N_deletions, stats.N_deletion_trials);
+    fprintf(outputfile, "    Moves: %d / %d\n", stats.N_moves, stats.N_move_trials);
+    fprintf(outputfile, "    ID swaps: %d / %d\n", stats.N_ID_swaps, stats.N_ID_swap_trials);
+    fprintf(outputfile, "    Regrows: %d / %d\n", stats.N_regrows, stats.N_regrow_trials);
+    fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
+    
+    // write loadings
+    for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
+        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
+        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
+        double N_confidence_bound = sqrt(stats.N_g2_avg[n_c] - stats.N_g_avg[n_c] * stats.N_g_avg[n_c])/sqrt(1.0 * stats.N_samples); // sigma / sqrt(N)
+
+        fprintf(outputfile, "\n    Adsorbate: %s\n", parameters.adsorbate[n_c].c_str());
+        fprintf(outputfile, "        Fugacity = %f Pa\n", parameters.fugacity[n_c]);
+        fprintf(outputfile, "        <N_g> (%s) = %f +/- %f molecules/ unit cell\n", parameters.adsorbate[n_c].c_str(), 1.0 * stats.N_g_avg[n_c] / parameters.replication_factor_a / parameters.replication_factor_b / parameters.replication_factor_c, N_confidence_bound);
+        fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
+        fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c]/volume/6.022e-7/framework.density);
+    }
+    fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
+    fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
+
 //    if (parameters.writeadsorbatepositions) 
 //        fprintf(outputfile, "\nWrote adsorbate positions in xyz file every %d MC moves\n    Took total of %d snapshots\n", parameters.writepositionfrequency, N_snapshots);
-//
-//    fclose(outputfile); 
+
+    fclose(outputfile); 
 }

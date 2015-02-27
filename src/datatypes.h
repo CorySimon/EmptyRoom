@@ -39,6 +39,8 @@ struct GuestBead {  // a Lennard-Jones sphere
     double z_f;
     // ID of bead in force field
     int type;
+    // guest molecule ID
+    int guestmoleculeID;
 };
 
 struct GuestMolecule {   // a molecule is made of beads
