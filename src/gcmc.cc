@@ -552,6 +552,8 @@ int main(int argc, char *argv[])
                 guestbeads[N_beads].z = z; 
                 // define which guest this bead belongs to
                 guestbeads[N_beads].guestmoleculeID = N_g_total;
+                // define bead type for energy computations
+                guestbeads[N_beads].type = guestmoleculeinfo[which_type].beadtypes[0];
 
                 // add second bead if not LJ sphere
                 if (guestmoleculeinfo[which_type].nbeads > 1) {
@@ -587,6 +589,8 @@ int main(int argc, char *argv[])
                     guestbeads[N_beads + 1].z = z;
                     // define which guest this bead belongs to
                     guestbeads[N_beads + 1].guestmoleculeID = N_g_total;
+                    // define bead type for energy computations
+                    guestbeads[N_beads + 1].type = guestmoleculeinfo[which_type].beadtypes[1];
                     
                     // add this bead to guests
                     guestmolecules[N_g_total].beadID[1] = N_beads + 1;
@@ -692,12 +696,13 @@ int main(int argc, char *argv[])
                             int beadid = guestmolecules[idx_guestmolecule].beadID[b];
                             // move last bead to here
                             guestbeads[beadid] = guestbeads[N_beads - 1 - b];
+                            // change molecule ID of beads for this guest
                             int otherguestmoleculeid =  guestbeads[N_beads - 1 - b].guestmoleculeID;
                             // change beadID in this other guest molecule to beadID
                             bool found = false;
                             for (int bi = 0; bi < guestmoleculeinfo[guestmolecules[otherguestmoleculeid].type].nbeads; bi++) {
                                 if (guestmolecules[otherguestmoleculeid].beadID[bi] == N_beads - 1 - b) {
-                                    guestmolecules[guestbeads[N_beads - 1 - b].guestmoleculeID].beadID[bi] = beadid;
+                                    guestmolecules[otherguestmoleculeid].beadID[bi] = beadid;
                                     found = true;
                                 }
                             }
@@ -705,6 +710,10 @@ int main(int argc, char *argv[])
                         }
                         // move last guest molecule to here
                         guestmolecules[idx_guestmolecule] = guestmolecules[N_g_total - 1];
+                        // change guestmoleculeID for its beads
+                        for (int b = 0; b < guestmoleculeinfo[guestmolecules[N_g_total - 1].type].nbeads; b++) 
+                                guestbeads[guestmolecules[N_g_total - 1].beadID[b]].guestmoleculeID = idx_guestmolecule;
+                        
                         // if delete adsorbate in the middle of guestmolecule_index_list, move the last one here so we see it.
                         guestmolecule_index_list[which_type][idx_thisguesttype] = guestmolecule_index_list[which_type][N_g[which_type] - 1];
                         // also we moved the last guest to the middle... find this!
