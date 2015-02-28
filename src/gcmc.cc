@@ -579,6 +579,7 @@ int main(int argc, char *argv[])
                                               x_f, y_f, z_f, 
                                               x, y, z);
                     }
+                    assert(OutsideUnitCell(guestbeads[N_beads+1].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f, parameters) == false);
                      
                     // assign coords
                     guestbeads[N_beads + 1].x_f = x_f;
@@ -738,93 +739,111 @@ int main(int argc, char *argv[])
                     }
                 }
             }
-//            //
-//            //  MC trial:  Translation
-//            //
-//            else if (whichMCmove < parameters.p_exchange + parameters.p_move) {
-//                if (parameters.debugmode) 
-//                    printf("Translation Trial.\n");
-//                stats.N_move_trials += 1;
-//
-//                if (N_g[which_type] > 0) {
-//                    // Randomly choose an adsorbate of which_type
-//                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    int idx_move_type = uniformint(generator);
-////                  assert(idx_move_type < N_g[which_type]);
-//                    int idx_move = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests
-////                  assert(idx_move < N_g_total);
-//                    
-//                    // compute energy in current (old) position
-//                    double energy_gf_old = 0.0;
-//                    if (which_type == 0)
-//                        energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
-//                                            grid_info, energy_grid0);
-//                    if (which_type == 1)
-//                        energy_gf_old = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
-//                                            grid_info, energy_grid1);
-//                    double energy_gg_old = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
-//
-//                    // store old coords
-//                    GuestParticle old_position = guests[idx_move];
-//
-//                    // perturb the position in Cartesian space
-//                    guests[idx_move].x += parameters.delta * (uniform01(generator) - 0.5);
-//                    guests[idx_move].y += parameters.delta * (uniform01(generator) - 0.5);
-//                    guests[idx_move].z += parameters.delta * (uniform01(generator) - 0.5);
-//
-//                    // convert back to fractional coords
-//                    double x_f, y_f, z_f;
-//                    CartesianToFractional(parameters.inv_t_matrix, x_f, y_f, z_f, guests[idx_move].x, guests[idx_move].y, guests[idx_move].z);
-//                    guests[idx_move].x_f = x_f;
-//                    guests[idx_move].y_f = y_f;
-//                    guests[idx_move].z_f = z_f;
-//
-//                    // if move outside of box, reflect particle to the other side
-//                    if ((x_f > parameters.replication_factor_a) | (y_f > parameters.replication_factor_b) | (z_f > parameters.replication_factor_c) | 
-//                                        (x_f < 0.0) | (y_f < 0.0) | (z_f < 0.0)) {
-//                        // adjust fractional coordinates, then later Cartesian coords
-//                        guests[idx_move].x_f = WrapToInterval(x_f,parameters.replication_factor_a);
-//                        guests[idx_move].y_f = WrapToInterval(y_f,parameters.replication_factor_b);
-//                        guests[idx_move].z_f = WrapToInterval(z_f,parameters.replication_factor_c);
-//                        double x,y,z;
-//                        FractionalToCartesian(parameters.t_matrix, guests[idx_move].x_f, guests[idx_move].y_f, guests[idx_move].z_f, x, y, z);
-//                        guests[idx_move].x = x;
-//                        guests[idx_move].y = y;
-//                        guests[idx_move].z = z;
-//                    }
-////                  assert(guests[idx_move].x_f > 0.0); assert(guests[idx_move].x_f < parameters.replication_factor_a);
-////                  assert(guests[idx_move].y_f > 0.0); assert(guests[idx_move].y_f < parameters.replication_factor_b);
-////                  assert(guests[idx_move].z_f > 0.0); assert(guests[idx_move].z_f < parameters.replication_factor_c);
-//
-//                    // get energy at new position
-//                    double energy_gf_new = 1e6;
-//                    if (which_type == 0)
-//                        energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
-//                                            grid_info, energy_grid0);
-//                    if (which_type == 1)
-//                        energy_gf_new = GuestFrameworkEnergy(WrapToInterval(guests[idx_move].x_f , 1.0),WrapToInterval(guests[idx_move].y_f , 1.0), WrapToInterval(guests[idx_move].z_f ,1.0),
-//                                            grid_info, energy_grid1);
-//                    double energy_gg_new = GuestGuestEnergy(N_g_total, idx_move, guests, parameters);
-//
-//                    double dE = energy_gf_new + energy_gg_new - (energy_gf_old + energy_gg_old);
-//                    if (rand_for_acceptance < exp(-dE/parameters.T)) {
-//                        stats.N_moves += 1; 
-//                        E_gg_this_cycle += energy_gg_new - energy_gg_old; E_gf_this_cycle += energy_gf_new - energy_gf_old;
-//                        if (energy_gf_new > 1e6) {
-//                            std::cout << "Move accepted with huge energy" << std::endl;
-//                            std::cout << "Old energy = " << energy_gf_old << std::endl;
-//                            std::cout << "New energy = " << energy_gf_new << std::endl;
-//                        }
-//                        // already overwrote coords with new coords, no need to update coords in this case
-//                    }
-//                    else {
-//                        // replace new cords with old coords
-//                        guests[idx_move] = old_position;
-//                    }
-//                } // end if N_g == 0
-//            } // end translation
-//
+            //
+            //  MC trial:  Translation
+            //
+            else if (whichMCmove < parameters.p_exchange + parameters.p_move) {
+                if (parameters.debugmode) 
+                    printf("Translation Trial.\n");
+                stats.N_move_trials += 1;
+
+                if (N_g[which_type] > 0) {
+                    // Randomly choose an adsorbate of which_type
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    int idx_move_type = uniformint(generator);  // corresponds to index of this type in guestmolecule_index
+                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests
+                    
+                    // compute energy in current (old) position
+                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_old = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_old = E_gf_old + E_gg_old;
+
+                    // get perturbation of the position in Cartesian space
+                    double x_perturb = parameters.delta * (uniform01(generator) - 0.5);
+                    double y_perturb = parameters.delta * (uniform01(generator) - 0.5);
+                    double z_perturb = parameters.delta * (uniform01(generator) - 0.5);
+
+                    GuestBead old_beads[2];  // for old coords of beads
+                    // move each bead of this guest the same amount
+                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                        // store old coords of beads
+                        old_beads[b] = guestbeads[beadid];
+                        
+                        // perturb bead
+                        guestbeads[beadid].x += x_perturb;
+                        guestbeads[beadid].y += y_perturb;
+                        guestbeads[beadid].z += z_perturb;
+                        // convert back to fractional coords
+                        double x_f, y_f, z_f;
+                        CartesianToFractional(parameters.inv_t_matrix, 
+                                             x_f, y_f, z_f, 
+                                             guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
+                        guestbeads[beadid].x_f = x_f;
+                        guestbeads[beadid].y_f = y_f;
+                        guestbeads[beadid].z_f = z_f;
+
+                        // if move outside of box, reflect particle to the other side
+                        if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
+                            // adjust fractional coordinates, then later Cartesian coords
+                            guestbeads[beadid].x_f = WrapToInterval(x_f, parameters.replication_factor_a);
+                            guestbeads[beadid].y_f = WrapToInterval(y_f, parameters.replication_factor_b);
+                            guestbeads[beadid].z_f = WrapToInterval(z_f, parameters.replication_factor_c);
+                            double x,y,z;
+                            FractionalToCartesian(parameters.t_matrix, 
+                                                 guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
+                                                 x, y, z);
+                            guestbeads[beadid].x = x;
+                            guestbeads[beadid].y = y;
+                            guestbeads[beadid].z = z;
+                        }
+                        assert(OutsideUnitCell(guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, parameters) == false);
+                    }
+
+                    // get energy at new position
+                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_new = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_new = E_gf_new + E_gg_new;
+                    
+                    // accept if, loosely, energeticall favorable
+                    if (rand_for_acceptance < exp(-(E_new - E_old)/parameters.T)) {
+                        stats.N_moves += 1; 
+                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
+                        if (E_new > 1e6)
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                        // already overwrote coords with new coords, no need to update coords in this case
+                    }
+                    else {
+                        // change new, moved cords back to old coords
+                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                            int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                            guestbeads[beadid] = old_beads[b];
+                        }
+                    }
+                } // end if N_g == 0
+            } // end translation
+
 //            //
 //            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
 //            //

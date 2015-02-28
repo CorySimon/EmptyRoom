@@ -7,6 +7,7 @@
 
 #ifndef WRITE_TO_OUTPUTFILE_H_
 #define WRITE_TO_OUTPUTFILE_H_
+#include<assert.h>
 
 void WriteSettingsToOutputfile(FILE * outputfile,
         GridParameters parameters,
