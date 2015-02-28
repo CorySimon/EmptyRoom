@@ -900,21 +900,133 @@ int main(int argc, char *argv[])
 //                } // end if N_g > 0
 //            } // end particle identity swap
 //
-//            //
-//            //  MC trial: Regrow (take out molecule and insert it in a different, random location) like a move mostly
-//            //
-//            else {
-//                if (parameters.debugmode) 
-//                    printf("Regrow Trial.\n");
-//                stats.N_regrow_trials += 1;
-//                
-//                if (N_g[which_type] > 0) { // if there are paricles of this type in the system
-//                    // Randomly choose an adsorbate of which_type
-//                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    int idx_move_type = uniformint(generator);
-//                    int idx_move = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests particle array
-//                    
+            //
+            //  MC trial: Regrow (take out molecule and insert it in a different, random location) like a move mostly
+            //
+            else {
+                if (parameters.debugmode) 
+                    printf("Regrow Trial.\n");
+                stats.N_regrow_trials += 1;
+                
+                if (N_g[which_type] > 0) { 
+                    // if there are paricles of this type in the system
+                    // Randomly choose an adsorbate of which_type
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    int idx_regrow_type = uniformint(generator);  // corresponds to index of this type in guestmolecule_index
+                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_regrow_type]; // global ID in guests
+                    
+                    // compute energy in current (old) position
+                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_old = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_old = E_gf_old + E_gg_old;
+
+                    GuestBead old_beads[2];  // for old coords of beads
+                    // move each bead of this guest the same amount
+                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                        // store old coords of beads
+                        old_beads[b] = guestbeads[beadid];
+                        
+                        // randomly insert first bead
+                        if (b == 0) {
+                            guestbeads[beadid].x_f = uniform01(generator) * parameters.replication_factor_a;
+                            guestbeads[beadid].y_f = uniform01(generator) * parameters.replication_factor_b;
+                            guestbeads[beadid].z_f = uniform01(generator) * parameters.replication_factor_c;
+                            
+                            double x, y, z; 
+                            FractionalToCartesian(parameters.t_matrix, 
+                                                  guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
+                                                  x, y, z);
+                            guestbeads[beadid].x = x; 
+                            guestbeads[beadid].y = y; 
+                            guestbeads[beadid].z = z; 
+                        }
+                        // if 2nd bead, insert on sphere centered at first bead
+                        if (b == 1) {
+                            double theta = 2 * M_PI * uniform01(generator);
+                            double phi = acos(2 * uniform01(generator) - 1);
+
+                            // insert second bead at Cartesian coords
+                            double x, y, z;
+                            x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
+                                                    guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
+                            y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
+                                                    guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
+                            z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
+                                                    guestmoleculeinfo[which_type].bondlength * cos(phi);
+
+                            // convert to fractional to make sure we are inside bounding box
+                            double x_f, y_f, z_f;
+                            CartesianToFractional(parameters.inv_t_matrix, 
+                                                  x_f, y_f, z_f, 
+                                                  x, y, z);
+                     
+                            if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
+                                // wrap to bounding box
+                                x_f = WrapToInterval(x_f, parameters.replication_factor_a);
+                                y_f = WrapToInterval(y_f, parameters.replication_factor_b);
+                                z_f = WrapToInterval(z_f, parameters.replication_factor_c);
+
+                                // recompute Cartesian coords
+                                FractionalToCartesian(parameters.t_matrix, 
+                                                      x_f, y_f, z_f, 
+                                                      x, y, z);
+                            }
+                     
+                            // assign coords
+                            guestbeads[beadid].x_f = x_f;
+                            guestbeads[beadid].y_f = y_f;
+                            guestbeads[beadid].z_f = z_f;
+                            guestbeads[beadid].x = x;
+                            guestbeads[beadid].y = y;
+                            guestbeads[beadid].z = z;
+                            assert(OutsideUnitCell(guestbeads[beadid].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f, parameters) == false);
+                        }  // end "if second bead..."
+                    }  // end loop over beads
+
+                    // get energy at new position
+                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_new = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_new = E_gf_new + E_gg_new;
+                    
+                    // accept if, loosely, energeticall favorable
+                    if (rand_for_acceptance < exp(-(E_new - E_old)/parameters.T)) {
+                        stats.N_moves += 1; 
+                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
+                        if (E_new > 1e6)
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                        // already overwrote coords with new coords, no need to update coords in this case
+                    }
+                    else {
+                        // change new, moved cords back to old coords
+                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                            int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                            guestbeads[beadid] = old_beads[b];
+                        }
+                    }
+                } // end if N_g == 0
+                    
 //                    // compute energy in current (old) position
 //                    double energy_gf_old = 0.0;
 //                    if (which_type == 0)
@@ -976,8 +1088,8 @@ int main(int argc, char *argv[])
 //                        guests[idx_move] = old_position;
 //                    }
 //                }
-//            }
-//
+            }
+
             // assert N_g < MAX_GUESTS
             if (N_g_total >= MAX_GUESTS - 2) {
                 printf("N_g > MAX_GUESTS!\n");
