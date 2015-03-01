@@ -525,7 +525,6 @@ int main(int argc, char *argv[])
                 theta = 2 * M_PI * uniform01(generator);
                 phi = acos(2 * uniform01(generator) - 1);
             }
-                
             
             //
             //  MC trial: Insertion
@@ -739,6 +738,7 @@ int main(int argc, char *argv[])
                     }
                 }
             }
+            
             //
             //  MC trial:  Translation
             //
@@ -844,62 +844,104 @@ int main(int argc, char *argv[])
                 } // end if N_g == 0
             } // end translation
 
-//            //
-//            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
-//            //
-//            else if (whichMCmove < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
-//                if (N_g[which_type] > 0) { // if there are paricles of this type in the system
-//                    stats.N_ID_swap_trials += 1;
-//
-//                    // pick which particles to change identity of
-//                    decltype(uniformint.param()) new_range (0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    int idx_type = uniformint(generator); // which of this component?
-//                    int idx = guestmolecule_index_list[which_type][idx_type]; // global index of this component
-////                  assert(guests[idx].type == which_type);
-//
-//                    // get energy difference with current ID
-//                    double energy_gg_old = GuestGuestEnergy(N_g_total, idx , guests, parameters);
-//                    double energy_gf_0 = GuestFrameworkEnergy(WrapToInterval(guests[idx].x_f , 1.0),WrapToInterval(guests[idx].y_f , 1.0), WrapToInterval(guests[idx].z_f ,1.0),
-//                                            grid_info, energy_grid0);
-//                    double energy_gf_1 = GuestFrameworkEnergy(WrapToInterval(guests[idx].x_f , 1.0),WrapToInterval(guests[idx].y_f , 1.0), WrapToInterval(guests[idx].z_f ,1.0),
-//                                            grid_info, energy_grid1);
-//                    
-//                    // change identity, recalculate energy
-//                    if (which_type == 0)
-//                        guests[idx].type = 1;
-//                    if (which_type == 1)
-//                        guests[idx].type = 0;
-//                    
-//                    double energy_gg_new = GuestGuestEnergy(N_g_total, idx , guests, parameters);
-//                    double dE;
-//                    if (which_type == 0) // if changing it to a 1
-//                        dE = energy_gf_1 + energy_gg_new - (energy_gf_0 + energy_gg_old);
-//                    if (which_type == 1) // if changing it to a 0
-//                        dE = energy_gf_0 + energy_gg_new - (energy_gf_1 + energy_gg_old);
-//                    int new_type = guests[idx].type;
-//                    double prob_acceptance_ID_swap = exp(-dE / parameters.T) * parameters.fugacity[new_type] / parameters.fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[new_type]) + 1.0);
-//                    if (rand_for_acceptance < prob_acceptance_ID_swap) { // ACCEPT
-//                        stats.N_ID_swaps += 1;
-//                        // keep guest particle as new declared type.
-//                        // keep track of energies
-//                        E_gg_this_cycle += energy_gg_new - energy_gg_old;
-//                        if (which_type == 0) // if changed to a 1
-//                            E_gf_this_cycle += energy_gf_1 - energy_gf_0;
-//                        if (which_type == 1) // if changed to a zero
-//                            E_gf_this_cycle += energy_gf_0 - energy_gf_1;
-//                        // deal with adorbate ID list
-//                        guestmolecule_index_list[which_type][idx_type] = guestmolecule_index_list[which_type][N_g[which_type] - 1]; // move last one of which_type to here, this one is deleted.
-//                        guestmolecule_index_list[new_type][N_g[new_type]] = idx; // now this index is part of the other component ID
-//                        // update particle numbers
-//                        N_g[which_type] -= 1; // one less of which type
-//                        N_g[new_type] += 1; // one more of new type
-//                    }
-//                    else // if didn't accept
-//                        guests[idx].type = which_type; // go back to old type.
-//                } // end if N_g > 0
-//            } // end particle identity swap
-//
+            //
+            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
+            //
+            else if (whichMCmove < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
+                // if there are paricles of this type in the system
+                if (N_g[which_type] > 0) { 
+                    stats.N_ID_swap_trials += 1;
+
+                    // pick which particles to change identity of
+                    decltype(uniformint.param()) new_range (0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    int idx_type = uniformint(generator); // which of this component?
+                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_type]; // global index of this component
+                    assert(guestmolecules[idx_guestmolecule].type == which_type);
+
+                    // compute energy of guest with its current identity
+                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_old = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_old = E_gf_old + E_gg_old;
+                    
+                    // store old guest and beads
+                    GuestMolecule oldguestmolecule = guestmolecules[idx_guestmolecule];
+                    GuestBead oldbeads[2];
+                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b ++)
+                        oldbeads[b] = guestbeads[oldguestmolecule.beadID[b]];
+                    
+                    int new_type = (which_type == 0) ? 1 : 0;
+                    int nbeads_this = guestmoleculeinfo[which_type].nbeads;
+                    int nbeads_new = guestmoleculeinfo[new_type].nbeads;
+                    
+                    // switch identity of guest
+                    guestmolecules[idx_guestmolecule].type = new_type;
+                    
+                    // single bead to single bead
+                    if ((nbeads_this == 1) & (nbeads_new == 1)) {
+                        // change type of bead
+                        guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[new_type].beadtypes[0];
+                    }
+                    if ((nbeads_this == 2) | (nbeads_new == 2)) {
+                        printf("dude not supported yet\n");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    // compute energy with the different identity
+                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
+                                guestmoleculeinfo,
+                                guestmolecules,
+                                guestbeads,
+                                grid_info,
+                                energy_grids);  // framework-guest
+                    double E_gg_new = GuestGuestEnergy(N_g_total,
+                            idx_guestmolecule, 
+                            guestmoleculeinfo,
+                            guestmolecules,
+                            guestbeads,
+                            parameters);  // guest-guest
+                    double E_new = E_gf_new + E_gg_new;
+                    
+                    // Accept move if, loosely, particle identity change was energetically favorable
+                    double prob_acceptance_ID_swap = exp(-(E_new - E_old) / parameters.T) * parameters.fugacity[new_type] / parameters.fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[new_type]) + 1.0);
+                    if (rand_for_acceptance < prob_acceptance_ID_swap) { 
+                        stats.N_ID_swaps += 1;
+                        
+                        // keep track of energies
+                        E_gg_this_cycle += E_gg_new - E_gg_old;
+                        E_gf_this_cycle += E_gf_new - E_gf_old;
+                        
+                        // move last one of which_type to here, this one is deleted.
+                        guestmolecule_index_list[which_type][idx_type] = guestmolecule_index_list[which_type][N_g[which_type] - 1]; 
+                        // now this index is part of the other component ID
+                        guestmolecule_index_list[new_type][N_g[new_type]] = idx_guestmolecule; 
+
+                        // update particle numbers
+                        N_g[which_type] -= 1; // one less of which type
+                        N_g[new_type] += 1; // one more of new type
+                    }
+                    else { 
+                        // if didn't accept
+                        guestmolecules[idx_guestmolecule].type = which_type; // go back to old type.
+                        // single bead to single bead
+                        if ((nbeads_this == 1) & (nbeads_new == 1)) {
+                            // change type of bead
+                            guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[which_type].beadtypes[0];
+                        }
+                    }
+                } // end if N_g > 0
+            } // end particle identity swap
+
             //
             //  MC trial: Regrow (take out molecule and insert it in a different, random location) like a move mostly
             //
@@ -1012,7 +1054,7 @@ int main(int argc, char *argv[])
                     
                     // accept if, loosely, energeticall favorable
                     if (rand_for_acceptance < exp(-(E_new - E_old)/parameters.T)) {
-                        stats.N_moves += 1; 
+                        stats.N_regrows += 1; 
                         E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
                         if (E_new > 1e6)
                             std::cout << "Move accepted with huge energy" << std::endl;
