@@ -212,6 +212,8 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
             simfile >> parameters.p_regrow;
         if (word=="move_delta")
             simfile >> parameters.delta;
+        if (word=="MakeAssertions")
+            simfile >> parameters.makeassertions;
         if (word=="WriteAdsorbatePositions")
             simfile >> parameters.writeadsorbatepositions;
         if (word=="WritePositionFrequency")

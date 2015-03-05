@@ -27,6 +27,7 @@
 #include "pocketblocking.h"
 #define min_r .0000000000000001  // don't want to divide by zero...
 #define MAX_GUESTS 2000 // max number of guests in an array
+// TODO difference between erbose and debug?
 
 void InitializeGCMCStats(GCMCStats & stats) {
     // initializes GCMC statistics to zero
@@ -458,6 +459,7 @@ int main(int argc, char *argv[])
     std::mt19937 generator (seed);
     std::uniform_real_distribution<double> uniform01(0.0, 1.0); // uniformly distributed real no in [0,1]
     std::uniform_int_distribution<int> uniformint(0, 10); // initialize with bogus range, will change later.
+    std::uniform_int_distribution<int> beadpicker(0, 1); // For picking a random bead in particle ID exchange
     std::uniform_int_distribution<int> type_generator(0, parameters.numadsorbates - 1); // for picking a component
     if (parameters.verbose) 
         printf("Random number generator initialized...\n");
@@ -557,36 +559,21 @@ int main(int argc, char *argv[])
                 // add second bead if not LJ sphere
                 if (guestmoleculeinfo[which_type].nbeads > 1) {
                     // generate Cartesian coords of second bead
-                    x = guestbeads[N_beads].x + guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
-                    y = guestbeads[N_beads].y + guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
-                    z = guestbeads[N_beads].z + guestmoleculeinfo[which_type].bondlength * cos(phi);
+                    guestbeads[N_beads + 1].x = guestbeads[N_beads].x + guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
+                    guestbeads[N_beads + 1].y = guestbeads[N_beads].y + guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
+                    guestbeads[N_beads + 1].z = guestbeads[N_beads].z + guestmoleculeinfo[which_type].bondlength * cos(phi);
 
-                    // convert to fractional to make sure we are inside bounding box
+                    // convert to fractional 
                     double x_f, y_f, z_f;
                     CartesianToFractional(parameters.inv_t_matrix, 
                                           x_f, y_f, z_f, 
-                                          x, y, z);
-                     
-                    if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
-                        // wrap to bounding box
-                        x_f = WrapToInterval(x_f, parameters.replication_factor_a);
-                        y_f = WrapToInterval(y_f, parameters.replication_factor_b);
-                        z_f = WrapToInterval(z_f, parameters.replication_factor_c);
-
-                        // recompute Cartesian coords
-                        FractionalToCartesian(parameters.t_matrix, 
-                                              x_f, y_f, z_f, 
-                                              x, y, z);
-                    }
-                    assert(OutsideUnitCell(guestbeads[N_beads+1].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f, parameters) == false);
-                     
-                    // assign coords
+                                          guestbeads[N_beads + 1].x, guestbeads[N_beads + 1].y, guestbeads[N_beads + 1].z);
                     guestbeads[N_beads + 1].x_f = x_f;
                     guestbeads[N_beads + 1].y_f = y_f;
-                    guestbeads[N_beads + 1].z_f = z_f;
-                    guestbeads[N_beads + 1].x = x;
-                    guestbeads[N_beads + 1].y = y;
-                    guestbeads[N_beads + 1].z = z;
+                    guestbeads[N_beads + 1].z_f = z_f;  // TODO pass this directly to cartesiantofrac
+                    
+                    // SECOND BEAD IS ALLOWED OUTSIDE OF THE UNIT CELL! (not the first though) 
+                     
                     // define which guest this bead belongs to
                     guestbeads[N_beads + 1].guestmoleculeID = N_g_total;
                     // define bead type for energy computations
@@ -611,11 +598,30 @@ int main(int argc, char *argv[])
                         parameters);  // guest-guest
                 double E_insertion = E_gf + E_gg;
                 
+                // for debug mode, print stuff off
+                if (parameters.debugmode) {
+                    printf("INSERTION PROPOSAL of type %d\n", which_type);
+                    printf("\n\tFirst bead insertion proposal at xf=%f,yf=%f,zf=%f\n", 
+                                guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guestbeads[N_beads].z_f);
+                    if (guestmoleculeinfo[which_type].nbeads > 1) {
+                        printf("\tSecond bead at xf=%f,yf=%f,zf=%f\n.", 
+                                    guestbeads[N_beads+1].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f);
+                        printf("\tBond length = %f\n", sqrt( pow(guestbeads[N_beads].x - guestbeads[N_beads+1].x, 2) +
+                                                             pow(guestbeads[N_beads].y - guestbeads[N_beads+1].y, 2) +
+                                                             pow(guestbeads[N_beads].z - guestbeads[N_beads+1].z, 2)));
+
+                    }
+                    std::cout << "\tE_gg = " << E_gg << std::endl;
+                    std::cout << "\tE_gf = " << E_gf << std::endl;
+                }
+                
                 // accept, loosely, if energetically favorable
                 double acceptance_insertion = parameters.fugacity[which_type] * volume / ((N_g[which_type] + 1) * 1.3806488e7 * parameters.T) * exp(-E_insertion / parameters.T);
+                if (parameters.debugmode) 
+                    std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
                 if (rand_for_acceptance < acceptance_insertion) {  
                     if (parameters.debugmode) 
-                        printf("\tInsertion accepted.\n");
+                        printf("\tInsertion ACCEPTED.\n");
 
                     stats.N_insertions += 1;
                     if (E_insertion > 1e6)
@@ -630,30 +636,15 @@ int main(int argc, char *argv[])
                     E_gg_this_cycle += E_gg; 
                     E_gf_this_cycle += E_gf;
                 }
-                
-                // for debug mode, print stuff off
-                if (parameters.debugmode) {
-                    std::cout << "Adsorbate id list: ";
-                    for (int ad = 0 ; ad < N_g[0] ; ad++)
-                         std::cout << guestmolecule_index_list[0][ad] << std::endl;
-                    printf("\tProposal to insert first bead at xf=%f,yf=%f,zf=%f\n.", 
-                                guestbeads[N_beads].x_f, guestbeads[N_beads].y_f, guestbeads[N_beads].z_f);
-                    if (guestmoleculeinfo[which_type].nbeads > 1)
-                        printf("\tProposal to insert second bead at xf=%f,yf=%f,zf=%f\n.", 
-                                    guestbeads[N_beads+1].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f);
-                    std::cout << "\tE_gg = " << E_gg << std::endl;
-                    std::cout << "\tE_gf = " << E_gf << std::endl;
-                    std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
-                }
-                
             }
+
             //
             //  MC trial: deletion 
             //
             else if (whichMCmove < parameters.p_exchange)
             {
                 if (parameters.debugmode) 
-                    printf("Deletion Trial.\n");
+                    printf("DELETION PROPOSAL of type %d\n", which_type);
                 stats.N_deletion_trials += 1;
                 
                 if (N_g[which_type] > 0) {
@@ -665,6 +656,8 @@ int main(int argc, char *argv[])
                     int idx_thisguesttype = uniformint(generator);  // index in guestmolecule_index_list
                     int idx_guestmolecule = guestmolecule_index_list[which_type][idx_thisguesttype]; // corresponding global ID in guests
                     assert(idx_guestmolecule < N_g_total);
+                    if (parameters.debugmode)
+                        printf("\tProposal to delete guest molecule %d\n", idx_guestmolecule);
                     
                     // compute energy of this guest that we propose to delete
                     double E_gf = GuestFrameworkEnergy(idx_guestmolecule, 
@@ -794,22 +787,42 @@ int main(int argc, char *argv[])
                         guestbeads[beadid].y_f = y_f;
                         guestbeads[beadid].z_f = z_f;
 
-                        // if move outside of box, reflect particle to the other side
-                        if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
-                            // adjust fractional coordinates, then later Cartesian coords
-                            guestbeads[beadid].x_f = WrapToInterval(x_f, parameters.replication_factor_a);
-                            guestbeads[beadid].y_f = WrapToInterval(y_f, parameters.replication_factor_b);
-                            guestbeads[beadid].z_f = WrapToInterval(z_f, parameters.replication_factor_c);
-                            double x,y,z;
-                            FractionalToCartesian(parameters.t_matrix, 
-                                                 guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
-                                                 x, y, z);
-                            guestbeads[beadid].x = x;
-                            guestbeads[beadid].y = y;
-                            guestbeads[beadid].z = z;
-                        }
-                        assert(OutsideUnitCell(guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, parameters) == false);
                     }
+                    
+                    // if FIRST BEAD is moved outside of box, reflect ENTIRE guest to the other side
+                    int first_beadid = guestmolecules[idx_guestmolecule].beadID[0];
+                    double x_f_correction = 0.0; double y_f_correction = 0.0; double z_f_correction = 0.0;
+                    if (guestbeads[first_beadid].x_f > 1.0 * parameters.replication_factor_a)
+                        x_f_correction = - 1.0 * parameters.replication_factor_a; 
+                    if (guestbeads[first_beadid].y_f > 1.0 * parameters.replication_factor_b)
+                        y_f_correction = - 1.0 * parameters.replication_factor_b; 
+                    if (guestbeads[first_beadid].z_f > 1.0 * parameters.replication_factor_c)
+                        z_f_correction = - 1.0 * parameters.replication_factor_c; 
+                    if (guestbeads[first_beadid].x_f < 0.0)
+                        x_f_correction = 1.0 * parameters.replication_factor_a;
+                    if (guestbeads[first_beadid].y_f < 0.0)
+                        y_f_correction = 1.0 * parameters.replication_factor_b;
+                    if (guestbeads[first_beadid].z_f < 0.0)
+                        z_f_correction = 1.0 * parameters.replication_factor_c;
+
+                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
+                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                        // adjust fractional coordinates, then later Cartesian coords
+                        guestbeads[beadid].x_f += x_f_correction;
+                        guestbeads[beadid].y_f += y_f_correction;
+                        guestbeads[beadid].z_f += z_f_correction;
+                        double x, y, z;
+                        FractionalToCartesian(parameters.t_matrix, 
+                                             guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
+                                             x, y, z); // TODO pass directly to here
+                        guestbeads[beadid].x = x;
+                        guestbeads[beadid].y = y;
+                        guestbeads[beadid].z = z;
+                    }
+                    assert(OutsideUnitCell(guestbeads[first_beadid].x_f, 
+                                           guestbeads[first_beadid].y_f, 
+                                           guestbeads[first_beadid].z_f, 
+                                           parameters) == false);
 
                     // get energy at new position
                     double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
@@ -876,25 +889,147 @@ int main(int argc, char *argv[])
                     
                     // store old guest and beads
                     GuestMolecule oldguestmolecule = guestmolecules[idx_guestmolecule];
-                    GuestBead oldbeads[2];
+                    GuestBead oldguestbeads[2];
                     for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b ++)
-                        oldbeads[b] = guestbeads[oldguestmolecule.beadID[b]];
-                    
+                        oldguestbeads[b] = guestbeads[oldguestmolecule.beadID[b]];
+
+                    // in case there are two beads to start, declare which we start with.
+                    int whichbead;
+                   
+                    // for ease, store number of beads in both and new_type 
                     int new_type = (which_type == 0) ? 1 : 0;
                     int nbeads_this = guestmoleculeinfo[which_type].nbeads;
                     int nbeads_new = guestmoleculeinfo[new_type].nbeads;
                     
                     // switch identity of guest
                     guestmolecules[idx_guestmolecule].type = new_type;
-                    
+
                     // single bead to single bead
                     if ((nbeads_this == 1) & (nbeads_new == 1)) {
                         // change type of bead
                         guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[new_type].beadtypes[0];
                     }
-                    if ((nbeads_this == 2) | (nbeads_new == 2)) {
-                        printf("dude not supported yet\n");
-                        exit(EXIT_FAILURE);
+
+                    // single bead to double bead
+                    if ((nbeads_this == 1) & (nbeads_new == 2)) {
+                        // change identity of old (single) bead to the first bead of the new guest with two beads
+                        guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[new_type].beadtypes[0];
+
+                        // create and place the second bead
+                        double theta = 2 * M_PI * uniform01(generator);
+                        double phi = acos(2 * uniform01(generator) - 1);
+
+                        // insert second bead at Cartesian coords
+                        guestbeads[N_beads].x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
+                                                guestmoleculeinfo[new_type].bondlength * sin(phi) * cos(theta);
+                        guestbeads[N_beads].y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
+                                                guestmoleculeinfo[new_type].bondlength * sin(phi) * sin(theta);
+                        guestbeads[N_beads].z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
+                                                guestmoleculeinfo[new_type].bondlength * cos(phi);
+
+                        // convert to fractional 
+                        double x_f, y_f, z_f;
+                        CartesianToFractional(parameters.inv_t_matrix, 
+                                              x_f, y_f, z_f, 
+                                              guestbeads[N_beads].x, guestbeads[N_beads].y, guestbeads[N_beads].z);
+                        // Remember, second bead allowed outside of bounding box...
+                        // assign coords
+                        guestbeads[N_beads].x_f = x_f;
+                        guestbeads[N_beads].y_f = y_f;
+                        guestbeads[N_beads].z_f = z_f;
+                        // assign type and guestmolculeID
+                        guestbeads[N_beads].type = guestmoleculeinfo[new_type].beadtypes[1];
+                        guestbeads[N_beads].guestmoleculeID = idx_guestmolecule;
+
+                        // make guestmolecule point to this new bead
+                        guestmolecules[idx_guestmolecule].beadID[1] = N_beads;
+                        // update bead count
+                        N_beads += 1;
+                    }
+
+                    // double bead to single bead
+                    if ((nbeads_this == 2) & (nbeads_new == 1)) {
+                        // choose which bead to use for guest, randomly
+                        whichbead = beadpicker(generator);
+                        printf("which bead %d\n", whichbead);  // for testing
+
+                        // change type of bead
+                        guestbeads[oldguestmolecule.beadID[whichbead]].type = guestmoleculeinfo[new_type].beadtypes[0];
+                        // make guest molecule point to this bead (energy computations will only see the first)
+                        guestmolecules[idx_guestmolecule].beadID[0] = oldguestmolecule.beadID[whichbead];  // energy computations will ignore other bead...
+                        // update bead count
+                        N_beads -= 1;
+                    }
+                    
+                    // double bead to double bead (deal with different lengths)
+                    if ((nbeads_this == 2) & (nbeads_new == 2)) {
+                        // choose which bead to hv in common
+                        whichbead = beadpicker(generator);
+                        int pivotbeadid = oldguestmolecule.beadID[whichbead];
+                        // change type of bead, keep position
+                        guestbeads[pivotbeadid].type = guestmoleculeinfo[new_type].beadtypes[0];
+                        // insert other bead along same vector, just shrink length
+                        //
+                        int otherbead = (whichbead == 0) ? 1 : 0;
+                        int otherbeadid = oldguestmolecule.beadID[otherbead];
+                        // change type of other bead, but will move...
+                        guestbeads[otherbeadid].type = guestmoleculeinfo[new_type].beadtypes[1];
+                        assert(otherbead != whichbead);
+                        
+                        VectorR3 bondvector;  // get bond vector
+                        bondvector.x = guestbeads[otherbeadid].x - guestbeads[pivotbeadid].x;
+                        bondvector.y = guestbeads[otherbeadid].y - guestbeads[pivotbeadid].y;
+                        bondvector.z = guestbeads[otherbeadid].z - guestbeads[pivotbeadid].z;
+
+                        // move second bead along bond vector, closer/further to/from pivot bead
+                        double bondlength_ratio = guestmoleculeinfo[new_type].bondlength / guestmoleculeinfo[which_type].bondlength;
+                        guestbeads[otherbeadid].x = guestbeads[pivotbeadid].x + bondvector.x * bondlength_ratio;
+                        guestbeads[otherbeadid].y = guestbeads[pivotbeadid].y + bondvector.y * bondlength_ratio;
+                        guestbeads[otherbeadid].z = guestbeads[pivotbeadid].z + bondvector.z * bondlength_ratio;
+
+                        double x_f, y_f, z_f;
+                        CartesianToFractional(parameters.inv_t_matrix, 
+                                             x_f, y_f, z_f, 
+                                             guestbeads[otherbeadid].x, guestbeads[otherbeadid].y, guestbeads[otherbeadid].z);
+                        guestbeads[otherbeadid].x_f = x_f;
+                        guestbeads[otherbeadid].y_f = y_f;
+                        guestbeads[otherbeadid].z_f = z_f;
+                    }
+                   
+                    // OKAY, changed guestmolecules[idx_guestmolecule] type at this point... 
+                    // if FIRST BEAD is moved outside of box, reflect ENTIRE guest to the other side
+                    int first_beadid = guestmolecules[idx_guestmolecule].beadID[0];
+                    double x_f_correction = 0.0; double y_f_correction = 0.0; double z_f_correction = 0.0;
+                    if (guestbeads[first_beadid].x_f > 1.0 * parameters.replication_factor_a)
+                        x_f_correction = - 1.0 * parameters.replication_factor_a;
+                    if (guestbeads[first_beadid].y_f > 1.0 * parameters.replication_factor_b)
+                        y_f_correction = - 1.0 * parameters.replication_factor_b;
+                    if (guestbeads[first_beadid].z_f > 1.0 * parameters.replication_factor_c)
+                        z_f_correction = - 1.0 * parameters.replication_factor_c;
+                    if (guestbeads[first_beadid].x_f < 0.0)
+                        x_f_correction = 1.0 * parameters.replication_factor_a;
+                    if (guestbeads[first_beadid].y_f < 0.0)
+                        y_f_correction = 1.0 * parameters.replication_factor_b;
+                    if (guestbeads[first_beadid].z_f < 0.0)
+                        z_f_correction = 1.0 * parameters.replication_factor_c;
+
+                    for (int b = 0; b < guestmoleculeinfo[new_type].nbeads; b++) {
+                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
+                        // adjust fractional coordinates, then later Cartesian coords
+                        guestbeads[beadid].x_f += x_f_correction;
+                        guestbeads[beadid].y_f += y_f_correction;
+                        guestbeads[beadid].z_f += z_f_correction;
+                        double x, y, z;
+                        FractionalToCartesian(parameters.t_matrix, 
+                                             guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
+                                             x, y, z); // TODO pass directly to here
+                        guestbeads[beadid].x = x;
+                        guestbeads[beadid].y = y;
+                        guestbeads[beadid].z = z;
+                        assert(OutsideUnitCell(guestbeads[first_beadid].x_f, 
+                                               guestbeads[first_beadid].y_f, 
+                                               guestbeads[first_beadid].z_f, 
+                                               parameters) == false);
                     }
 
                     // compute energy with the different identity
@@ -929,16 +1064,43 @@ int main(int argc, char *argv[])
                         // update particle numbers
                         N_g[which_type] -= 1; // one less of which type
                         N_g[new_type] += 1; // one more of new type
-                    }
+                        
+                        // actually replace this deleted bead with last bead in array
+                        if ((nbeads_this == 2) & (nbeads_new == 1)) { 
+                            // replace this deleted guest's beads with the beads at the end of guestbeads
+                            int otherbead = (whichbead == 0) ? 1 : 0;
+                            printf("\tother bead%d\n", otherbead); // for test
+                            int beadid_to_remove = oldguestmolecule.beadID[otherbead];
+                            // move last bead to here. incremented N_beads =- 1 already
+                            guestbeads[beadid_to_remove] = guestbeads[N_beads];
+                            // change molecule ID of beads for this guest
+                            int otherguestmoleculeid =  guestbeads[N_beads].guestmoleculeID;
+                            // change beadID in this other guest molecule to beadID_to_remove
+                            bool found = false;
+                            for (int bi = 0; bi < guestmoleculeinfo[guestmolecules[otherguestmoleculeid].type].nbeads; bi++) {
+                                if (guestmolecules[otherguestmoleculeid].beadID[bi] == N_beads) {
+                                    guestmolecules[otherguestmoleculeid].beadID[bi] = beadid_to_remove;
+                                    found = true;
+                                }
+                            }
+                            assert(found == true); // TODO remove later, for checking
+                        }
+                    }  // end "if we accept this move"
                     else { 
                         // if didn't accept
-                        guestmolecules[idx_guestmolecule].type = which_type; // go back to old type.
-                        // single bead to single bead
-                        if ((nbeads_this == 1) & (nbeads_new == 1)) {
-                            // change type of bead
-                            guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[which_type].beadtypes[0];
-                        }
-                    }
+                        // go back to old guest molecule position
+                        guestmolecules[idx_guestmolecule] = oldguestmolecule;
+                        // replace beads with old beads
+                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++)
+                            guestbeads[oldguestmolecule.beadID[b]] = oldguestbeads[b];
+                        
+                        // ignore the last bead that we inserted by changing the number of beads
+                        if ((nbeads_this == 1) & (nbeads_new == 2))
+                            N_beads -= 1;
+                        // change beads back to original value
+                        if ((nbeads_this == 2) & (nbeads_new == 1))
+                            N_beads += 1;
+                    }  // end "if we didnt accept this move"
                 } // end if N_g > 0
             } // end particle identity swap
 
@@ -974,7 +1136,7 @@ int main(int argc, char *argv[])
                     double E_old = E_gf_old + E_gg_old;
 
                     GuestBead old_beads[2];  // for old coords of beads
-                    // move each bead of this guest the same amount
+                    // insert this guest at a new position
                     for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
                         int beadid = guestmolecules[idx_guestmolecule].beadID[b];
                         // store old coords of beads
@@ -1000,40 +1162,23 @@ int main(int argc, char *argv[])
                             double phi = acos(2 * uniform01(generator) - 1);
 
                             // insert second bead at Cartesian coords
-                            double x, y, z;
-                            x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
+                            guestbeads[beadid].x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
                                                     guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
-                            y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
+                            guestbeads[beadid].y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
                                                     guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
-                            z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
+                            guestbeads[beadid].z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
                                                     guestmoleculeinfo[which_type].bondlength * cos(phi);
 
                             // convert to fractional to make sure we are inside bounding box
                             double x_f, y_f, z_f;
                             CartesianToFractional(parameters.inv_t_matrix, 
                                                   x_f, y_f, z_f, 
-                                                  x, y, z);
-                     
-                            if (OutsideUnitCell(x_f, y_f, z_f, parameters)) {
-                                // wrap to bounding box
-                                x_f = WrapToInterval(x_f, parameters.replication_factor_a);
-                                y_f = WrapToInterval(y_f, parameters.replication_factor_b);
-                                z_f = WrapToInterval(z_f, parameters.replication_factor_c);
-
-                                // recompute Cartesian coords
-                                FractionalToCartesian(parameters.t_matrix, 
-                                                      x_f, y_f, z_f, 
-                                                      x, y, z);
-                            }
-                     
-                            // assign coords
+                                                  guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
+                            
+                            // SECOND bead is allowed outside simulation box. do not worry about PBC here!  assign fractional coords
                             guestbeads[beadid].x_f = x_f;
                             guestbeads[beadid].y_f = y_f;
                             guestbeads[beadid].z_f = z_f;
-                            guestbeads[beadid].x = x;
-                            guestbeads[beadid].y = y;
-                            guestbeads[beadid].z = z;
-                            assert(OutsideUnitCell(guestbeads[beadid].x_f, guestbeads[N_beads+1].y_f, guestbeads[N_beads+1].z_f, parameters) == false);
                         }  // end "if second bead..."
                     }  // end loop over beads
 
@@ -1088,6 +1233,113 @@ int main(int argc, char *argv[])
                 stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
                 stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
             }
+
+            //
+            // Print stuff if debug mode
+            //
+            if (parameters.debugmode) {
+                // print guest molecule information
+                printf("\n\n");
+                printf("GUEST LIST OF %d guests:\n", N_g_total);
+                for (int g = 0; g < N_g_total; g++) {
+                    printf("\t%d. type %d. %d beads. Bead IDs:", g, guestmolecules[g].type, guestmoleculeinfo[guestmolecules[g].type].nbeads);
+                    for (int b = 0; b < guestmoleculeinfo[guestmolecules[g].type].nbeads; b++)
+                        printf(" %d", guestmolecules[g].beadID[b]);
+                    printf("\n");
+                }
+                // print bead information
+                printf("\nBEAD LIST OF %d beads.\n", N_beads);
+                for (int b = 0; b < N_beads; b++) 
+                    printf("\t%d. type %d, guestmolecule ID %d\n", b, guestbeads[b].type, guestbeads[b].guestmoleculeID);
+                // print adsorbate list
+                printf("GUEST LIST BY TYPE.\n");
+                printf("\tType 0 guest IDs: ");
+                for (int a = 0 ; a < N_g[0] ; a++)
+                     printf(" %d", guestmolecule_index_list[0][a]);
+                if (parameters.numadsorbates > 1) {
+                    printf("\n\tType 1 guest IDs: ");
+                    for (int a = 0 ; a < N_g[1] ; a++)
+                         printf(" %d", guestmolecule_index_list[1][a]);
+                }
+                printf("\n\n");
+            }
+            
+            //
+            // Make assertions to check code
+            //
+            if (parameters.makeassertions) {
+                double bondlength_tol = 0.000001;  // tolerance for bond length
+                double coords_tol = 0.000001; // tolerance for coordinates differences
+                int typecounts[2] = {0};
+                int beadcount = 0;
+                for (int g = 0; g < N_g_total; g++) {
+                    // count molecules of each type
+                    typecounts[guestmolecules[g].type] ++;
+                    // count beads
+                    beadcount += guestmoleculeinfo[guestmolecules[g].type].nbeads;
+                    // assert first bead is inside unit cell
+                    int first_beadid = guestmolecules[g].beadID[0];
+                    assert(OutsideUnitCell(guestbeads[first_beadid].x_f, guestbeads[first_beadid].y_f, guestbeads[first_beadid].z_f, parameters) == false);
+                    // assert bond lengths if applicable
+                    if (guestmoleculeinfo[guestmolecules[g].type].nbeads == 2) {
+                        int second_beadid = guestmolecules[g].beadID[1];
+                        double dx = guestbeads[first_beadid].x - guestbeads[second_beadid].x;
+                        double dy = guestbeads[first_beadid].y - guestbeads[second_beadid].y;
+                        double dz = guestbeads[first_beadid].z - guestbeads[second_beadid].z;
+                        double l = sqrt(dx*dx + dy*dy + dz*dz);
+                        assert(l < guestmoleculeinfo[guestmolecules[g].type].bondlength + bondlength_tol);
+                        assert(l > guestmoleculeinfo[guestmolecules[g].type].bondlength - bondlength_tol);
+                    }
+                    // assert beads in this guest pointing correctly to this guest molecule
+                    for (int b = 0; b < guestmoleculeinfo[guestmolecules[g].type].nbeads; b++) {
+                        int beadid = guestmolecules[g].beadID[b];
+                        if (g != guestbeads[beadid].guestmoleculeID) {
+                            printf("FAIL, guest bead %d is assigned to guest molecule %d\n", b, guestbeads[b].guestmoleculeID);
+                            printf("\tbut bead IDs of guest molecule %d: %d and %d\n", g, guestmolecules[g].beadID[0], guestmolecules[g].beadID[1]);
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                }  // end loop over guests
+                assert(beadcount == N_beads);
+                assert(typecounts[0] == N_g[0]);
+                assert(typecounts[1] == N_g[1]);
+                assert(N_g[0] + N_g[1] == N_g_total);
+                
+                // assert that our index list is correct
+                for (int i0 = 0; i0 < N_g[0]; i0 ++) {
+                    int idx_guestmolecule = guestmolecule_index_list[0][i0]; 
+                    assert(guestmolecules[idx_guestmolecule].type == 0);
+                }
+                for (int i1 = 0; i1 < N_g[1]; i1 ++) {
+                    int idx_guestmolecule = guestmolecule_index_list[1][i1]; 
+                    assert(guestmolecules[idx_guestmolecule].type == 1);
+                }
+
+                // assert guest beads fractional and cartesian coords match
+                for (int b = 0; b < N_beads; b ++) {
+                    double x, y, z;
+                    FractionalToCartesian(parameters.t_matrix,
+                                         guestbeads[b].x_f, guestbeads[b].y_f, guestbeads[b].z_f,
+                                         x, y, z);
+
+                    if (
+                    (guestbeads[b].x > x + coords_tol) |
+                    (guestbeads[b].y > y + coords_tol) |
+                    (guestbeads[b].z > z + coords_tol) |
+                    (guestbeads[b].x < x - coords_tol) |
+                    (guestbeads[b].y < y - coords_tol) |
+                    (guestbeads[b].z < z - coords_tol)
+                    ) {
+                        printf("FAIL on bead id %d, belongs to guest %d\n", b, guestbeads[b].guestmoleculeID);
+                        printf("\tGuest molecule beadIDs: %d and %d", guestmolecules[guestbeads[b].guestmoleculeID].beadID[0], guestmolecules[guestbeads[b].guestmoleculeID].beadID[1]);
+                        printf("\nGuest type %d, index %d, total guests %d\n", guestmolecules[guestbeads[b].guestmoleculeID].type, guestbeads[b].guestmoleculeID, N_g_total);
+                        printf(" (x_f, y_f, z_f) = (%f, %f, %f)\n" , guestbeads[b].x_f, guestbeads[b].y_f, guestbeads[b].z_f);
+                        printf(" (x, y, z) = (%f, %f, %f)\n" , guestbeads[b].x, guestbeads[b].y, guestbeads[b].z);
+                        printf(" (x, y, z) = (%f, %f, %f)\n" , x, y, z);
+                        exit(EXIT_FAILURE);
+                    }
+               }
+            }  // end make assertions
 //            
 //            //
 //            // Write adsorbate positions to file
@@ -1140,11 +1392,14 @@ int main(int argc, char *argv[])
     // write stats
     fprintf(outputfile, "\nGCMC Statistics\n");
     fprintf(outputfile, "    Simulation time: %f min\n", sim_time / 60.0);
-    fprintf(outputfile, "    Insertions: %d / %d\n", stats.N_insertions, stats.N_insertion_trials);
-    fprintf(outputfile, "    Deletions: %d / %d\n", stats.N_deletions, stats.N_deletion_trials);
-    fprintf(outputfile, "    Moves: %d / %d\n", stats.N_moves, stats.N_move_trials);
-    fprintf(outputfile, "    ID swaps: %d / %d\n", stats.N_ID_swaps, stats.N_ID_swap_trials);
-    fprintf(outputfile, "    Regrows: %d / %d\n", stats.N_regrows, stats.N_regrow_trials);
+    fprintf(outputfile, "    Insertions: %d / %d (%f %% accepted)\n", stats.N_insertions, stats.N_insertion_trials, 100.0 * stats.N_insertions / stats.N_insertion_trials);
+    fprintf(outputfile, "    Deletions: %d / %d (%f %% accepted)\n", stats.N_deletions, stats.N_deletion_trials, 100.0 * stats.N_deletions / stats.N_deletion_trials);
+    if (parameters.p_move > 0.0)
+        fprintf(outputfile, "    Moves: %d / %d (%f %% accepted)\n", stats.N_moves, stats.N_move_trials, 100.0 * stats.N_moves / stats.N_move_trials);
+    if (parameters.p_identity_change > 0.0)
+        fprintf(outputfile, "    Identity changes: %d / %d (%f %% accepted)\n", stats.N_ID_swaps, stats.N_ID_swap_trials, 100.0 * stats.N_ID_swaps / stats.N_ID_swap_trials);
+    if (parameters.p_regrow > 0.0)
+        fprintf(outputfile, "    Regrows: %d / %d (%f %% accepted)\n", stats.N_regrows, stats.N_regrow_trials, 100.0 * stats.N_regrows / stats.N_regrow_trials);
     fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
     
     // write loadings

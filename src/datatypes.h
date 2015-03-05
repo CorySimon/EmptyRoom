@@ -10,6 +10,10 @@
 #include<string>
 #include<vector>
 
+struct VectorR3 {
+    double x, y, z;
+};
+
 struct TripleInt {
     int arg1, arg2, arg3;
 }; // 3d vect
@@ -169,6 +173,9 @@ struct GCMCParameters {
     // write adsorbate positions to xyz file?
     bool writeadsorbatepositions;
     int writepositionfrequency;
+
+    // make assertions for debugging (super slow)
+    bool makeassertions;
 };
 
 struct GridInfo {
