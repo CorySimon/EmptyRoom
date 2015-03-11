@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     GridParameters parameters;
     parameters.frameworkname = argv[1];
     parameters.adsorbate = argv[2];
-    parameters.adsorbateMW = GetAdsorbateMW(parameters.adsorbate);
+//    parameters.adsorbateMW = GetAdsorbateMW(parameters.adsorbate);
 
     ReadSimulationInputFile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");

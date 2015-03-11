@@ -259,6 +259,8 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     // Forcefield information
     //
     fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
+    fprintf(outputfile, "    Unit cell replication factors: %d %d %d\n", 
+                    parameters.replication_factor_a, parameters.replication_factor_b, parameters.replication_factor_c);
     fprintf(outputfile, "    Pure bead interactions:\n");
     for (int i = 0; i < parameters.nuniquebeads; i ++)
         fprintf(outputfile, "      %s-%s: epsilon = %f K, sigma = %f A\n", 

@@ -470,13 +470,14 @@ int main(int argc, char *argv[])
     FILE * outputfile;
     char outputfilename[512];
     if (parameters.numadsorbates == 1)
-        sprintf(outputfilename, "output_files/%s_%s_%sPa_gcmc.out", 
-            parameters.frameworkname.c_str(), parameters.adsorbate[0].c_str(), argv[3]);
+        sprintf(outputfilename, "output_files/%s_%s_%sPa_%gK_gcmc.out", 
+            parameters.frameworkname.c_str(), parameters.adsorbate[0].c_str(), argv[3], parameters.T);
     if (parameters.numadsorbates == 2)
-        sprintf(outputfilename, "output_files/%s_%s_%sPa_%s_%sPa_gcmc.out", 
+        sprintf(outputfilename, "output_files/%s_%s_%sPa_%s_%sPa_%gK_gcmc.out", 
             parameters.frameworkname.c_str(), 
             parameters.adsorbate[0].c_str(), argv[3],
-            parameters.adsorbate[1].c_str(), argv[5]);
+            parameters.adsorbate[1].c_str(), argv[5],
+            parameters.T);
     outputfile = fopen(outputfilename, "w");
     WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, grid_info, guestmoleculeinfo);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
