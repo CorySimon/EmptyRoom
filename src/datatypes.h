@@ -173,6 +173,7 @@ struct GCMCParameters {
     // write adsorbate positions to xyz file?
     bool writeadsorbatepositions;
     int writepositionfrequency;
+    int num_snapshots;
 
     // make assertions for debugging (super slow)
     bool makeassertions;
