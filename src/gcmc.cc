@@ -269,17 +269,31 @@ double TotalGuestFrameworkEnergy(int N_g,
     return E_gf;
 }
 
-////
-//// Write guest positions to file
-////
-//void WriteGuestPostionsToFile(FILE * positionfile, GuestParticle * guests, int N_g, GCMCParameters parameters) {
-//    for (int i = 0; i < N_g ; i++) {
-//        fprintf(positionfile, "%s %f %f %f\n", 
-//                parameters.adsorbate[guests[i].type].c_str(),
-//                guests[i].x, guests[i].y, guests[i].z);
-//    }
-//}
 //
+// Write guest positions to file
+//
+void WriteGuestPostionsToFile(FILE * positionfile, 
+                              int N_g_total,
+                              GuestMoleculeInfo * guestmoleculeinfo,
+                              GuestMolecule * guestmolecules,
+                              GuestBead * guestbeads,
+                              GCMCParameters parameters) {
+    // for each guest molecule...
+    for (int i = 0; i < N_g_total ; i++) {
+        // for each bead in this guest molecule...
+        for (int b = 0; b < guestmoleculeinfo[guestmolecules[i].type].nbeads; b++) {
+            int beadid = guestmolecules[i].beadID[b];  // ID of this bead
+            int beadtype = guestbeads[beadid].type;
+            std::string beadlabel = (guestmoleculeinfo[guestmolecules[i].type].beadtypes[0] == beadtype) ? 
+                                    guestmoleculeinfo[guestmolecules[i].type].beadlabels[0] : 
+                                    guestmoleculeinfo[guestmolecules[i].type].beadlabels[1]; 
+            fprintf(positionfile, "%s %f %f %f\n", 
+                    beadlabel.c_str(),
+                    guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
+        }
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (! ((argc == 4) | (argc == 6))) {
@@ -482,15 +496,17 @@ int main(int argc, char *argv[])
     WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, grid_info, guestmoleculeinfo);
     if (parameters.verbose) printf("Wrote info to outputfile\n");
 
-//    //
-//    // Initialize adsorbate positions file to dump adsorbate positions
-//    //
-//    FILE * adsorbatepositionfile;
-//    char positionfilename[512];
-//    sprintf(positionfilename, "output_files/adsorbate_positions_%s.xyz", framework.name.c_str());
-//    adsorbatepositionfile = fopen(positionfilename, "w");
-//    int N_snapshots = 0;
-//
+    //
+    // Initialize adsorbate positions file to dump adsorbate positions
+    //
+    FILE * adsorbatepositionfile;
+    int N_snapshots = 0;
+    if (parameters.writeadsorbatepositions) {
+        char positionfilename[1024];
+        sprintf(positionfilename, "output_files/adsorbate_positions_%s.xyz", framework.name.c_str());
+        adsorbatepositionfile = fopen(positionfilename, "w");
+    }
+
     //
     //  Run GCMC
     //
@@ -1341,28 +1357,28 @@ int main(int argc, char *argv[])
                     }
                }
             }  // end make assertions
-//            
-//            //
-//            // Write adsorbate positions to file
-//            //
-//            if (parameters.writeadsorbatepositions) {
-//                if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.writepositionfrequency == 0)) {
-//                    N_snapshots ++;
-//                    WriteGuestPostionsToFile(adsorbatepositionfile, guests, N_g_total, parameters);
-//                }
-//            }
-//
-//            // for debug mode
-//            if (parameters.debugmode == true) {
-//                std::cout << "MC move " << cycle_counter << std::endl;
-//                std::cout << "\tN_g [0]= " << N_g[0] << std::endl;
-//                std::cout << "\tN_g [1]= " << N_g[1] << std::endl;
-//                std::cout << "\tN_g_total = " << N_g_total << std::endl;
-//                std::cout << "\tE_gg = " << E_gg_this_cycle << std::endl;
-//                std::cout << "\tE_gf = " << E_gf_this_cycle << std::endl;
-//            }
-//
-//
+            
+            //
+            // Write adsorbate positions to file (optional)
+            //
+            if (parameters.writeadsorbatepositions) {
+                if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.writepositionfrequency == 0)) {
+                    N_snapshots ++;
+                    WriteGuestPostionsToFile(adsorbatepositionfile, 
+                              N_g_total,
+                              guestmoleculeinfo,
+                              guestmolecules,
+                              guestbeads,
+                              parameters); 
+                    if (N_snapshots > parameters.num_snapshots) {
+                        printf("Reached %d snapshots, exiting.\n", N_snapshots);
+                        fprintf(outputfile, "\nWrote %d adsorbate snapshot positions in xyz file every %d MC moves.\n", 
+                                        N_snapshots, parameters.writepositionfrequency);
+                        std::exit(EXIT_SUCCESS);
+                    }
+                }
+            }
+
         }  // end inner cycle loop
 //
     }  // end outer cycle loop
@@ -1418,8 +1434,6 @@ int main(int argc, char *argv[])
     fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
     fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
 
-//    if (parameters.writeadsorbatepositions) 
-//        fprintf(outputfile, "\nWrote adsorbate positions in xyz file every %d MC moves\n    Took total of %d snapshots\n", parameters.writepositionfrequency, N_snapshots);
 
     fclose(outputfile); 
 }
