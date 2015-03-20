@@ -218,6 +218,8 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
             simfile >> parameters.writeadsorbatepositions;
         if (word=="WritePositionFrequency")
             simfile >> parameters.writepositionfrequency;
+        if (word=="NumSnapshots")
+            simfile >> parameters.num_snapshots;
     }
 
     // check for missing
