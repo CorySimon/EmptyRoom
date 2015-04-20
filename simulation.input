@@ -6,7 +6,7 @@ VoidFractionEnergyThreshold 0
 GridOutputFormat txt # write txt for henry calcs, or cube for vis
 
 FeynmanHibbs 0 # put "1" or "0"
-Temperature 298 K
+Temperature 318 K
 
 # for Henry
 NumberOfInsertionsPerA3 1000
@@ -15,14 +15,18 @@ NumberOfInsertionsPerA3 1000
 NumberOfTrials 300000
 SampleFrequency 10
 CyclesForEquilibrium 150000
-TrialProbability(Move) 0.4
-TrialProbability(Exchange) 0.6
+TrialProbability(Move) 0.25
+TrialProbability(Exchange) 0.5
 TrialProbability(IdentityChange) 0.0
+TrialProbability(Regrow) 0.25
 move_delta 0.3
 PocketBlocking 0
-WriteAdsorbatePositions 1
-WritePositionFrequency 50000
+
+# for writing adsorbate positions in GCMC (occurs after equilibration cycles)
+WriteAdsorbatePositions 0
+WritePositionFrequency 500  # write every how many MC cycles?
+NumSnapshots 100  # how many snapshots?
 
 verbosemode 0
 DebugMode 0
-
+MakeAssertions 0
