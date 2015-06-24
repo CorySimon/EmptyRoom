@@ -717,327 +717,173 @@ int main(int argc, char *argv[])
                 } // end if N_g == 0
             } // end translation
 
-//            //
-//            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
-//            //
-//            else if (whichMCmove < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
-//                // if there are paricles of this type in the system
-//                if (N_g[which_type] > 0) { 
-//                    stats.N_ID_swap_trials += 1;
-//
-//                    // pick which adsorbate of this type to change identity of
-//                    decltype(uniformint.param()) new_range (0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    int idx_type = uniformint(generator); // which of this component?
-//                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_type]; // global index of this component
-//                    assert(guestmolecules[idx_guestmolecule].type == which_type);
-//
-//                    // compute energy of guest with its current identity
-//                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_old = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_old = E_gf_old + E_gg_old;
-//                    
-//                    // store old guest and beads
-//                    GuestMolecule oldguestmolecule = guestmolecules[idx_guestmolecule];
-//                    GuestBead oldguestbeads[2];
-//                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b ++)
-//                        oldguestbeads[b] = guestbeads[oldguestmolecule.beadID[b]];
-//
-//                    // in case there are two beads to start, declare which we start with.
-//                    int whichbead;
-//                   
-//                    // for ease, store number of beads in both and new_type 
-//                    int new_type = (which_type == 0) ? 1 : 0;
-//                    int nbeads_this = guestmoleculeinfo[which_type].nbeads;
-//                    int nbeads_new = guestmoleculeinfo[new_type].nbeads;
-//                    
-//                    // switch identity of guest
-//                    guestmolecules[idx_guestmolecule].type = new_type;
-//
-//                    // single bead to single bead
-//                    if ((nbeads_this == 1) & (nbeads_new == 1)) {
-//                        // change type of bead
-//                        guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[new_type].beadtypes[0];
-//                    }
-//
-//                    // single bead to double bead
-//                    if ((nbeads_this == 1) & (nbeads_new == 2)) {
-//                        // change identity of old (single) bead to the first bead of the new guest with two beads
-//                        guestbeads[oldguestmolecule.beadID[0]].type = guestmoleculeinfo[new_type].beadtypes[0];
-//
-//                        // create and place the second bead
-//                        double theta = 2 * M_PI * uniform01(generator);
-//                        double phi = acos(2 * uniform01(generator) - 1);
-//
-//                        // insert second bead at Cartesian coords
-//                        guestbeads[N_beads].x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
-//                                                guestmoleculeinfo[new_type].bondlength * sin(phi) * cos(theta);
-//                        guestbeads[N_beads].y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
-//                                                guestmoleculeinfo[new_type].bondlength * sin(phi) * sin(theta);
-//                        guestbeads[N_beads].z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
-//                                                guestmoleculeinfo[new_type].bondlength * cos(phi);
-//
-//                        // convert to fractional 
-//                        double x_f, y_f, z_f;
-//                        CartesianToFractional(parameters.inv_t_matrix, 
-//                                              x_f, y_f, z_f, 
-//                                              guestbeads[N_beads].x, guestbeads[N_beads].y, guestbeads[N_beads].z);
-//                        // Remember, second bead allowed outside of bounding box...
-//                        // assign coords
-//                        guestbeads[N_beads].x_f = x_f;
-//                        guestbeads[N_beads].y_f = y_f;
-//                        guestbeads[N_beads].z_f = z_f;
-//                        // assign type and guestmolculeID
-//                        guestbeads[N_beads].type = guestmoleculeinfo[new_type].beadtypes[1];
-//                        guestbeads[N_beads].guestmoleculeID = idx_guestmolecule;
-//
-//                        // make guestmolecule point to this new bead
-//                        guestmolecules[idx_guestmolecule].beadID[1] = N_beads;
-//                        // update bead count
-//                        N_beads += 1;
-//                    }
-//
-//                    // double bead to single bead
-//                    if ((nbeads_this == 2) & (nbeads_new == 1)) {
-//                        // choose which bead to use for guest, randomly
-//                        whichbead = beadpicker(generator);
-//                        printf("which bead %d\n", whichbead);  // for testing
-//
-//                        // change type of bead
-//                        guestbeads[oldguestmolecule.beadID[whichbead]].type = guestmoleculeinfo[new_type].beadtypes[0];
-//                        // make guest molecule point to this bead (energy computations will only see the first)
-//                        guestmolecules[idx_guestmolecule].beadID[0] = oldguestmolecule.beadID[whichbead];  // energy computations will ignore other bead...
-//                        // update bead count
-//                        N_beads -= 1;
-//                    }
-//                    
-//                    // double bead to double bead (deal with different lengths)
-//                    if ((nbeads_this == 2) & (nbeads_new == 2)) {
-//                        // choose which bead to hv in common
-//                        whichbead = beadpicker(generator);
-//                        int pivotbeadid = oldguestmolecule.beadID[whichbead];
-//                        // change type of bead, keep position
-//                        guestbeads[pivotbeadid].type = guestmoleculeinfo[new_type].beadtypes[0];
-//                        // insert other bead along same vector, just shrink length
-//                        //
-//                        int otherbead = (whichbead == 0) ? 1 : 0;
-//                        int otherbeadid = oldguestmolecule.beadID[otherbead];
-//                        // change type of other bead, but will move...
-//                        guestbeads[otherbeadid].type = guestmoleculeinfo[new_type].beadtypes[1];
-//                        assert(otherbead != whichbead);
-//                        
-//                        VectorR3 bondvector;  // get bond vector
-//                        bondvector.x = guestbeads[otherbeadid].x - guestbeads[pivotbeadid].x;
-//                        bondvector.y = guestbeads[otherbeadid].y - guestbeads[pivotbeadid].y;
-//                        bondvector.z = guestbeads[otherbeadid].z - guestbeads[pivotbeadid].z;
-//
-//                        // move second bead along bond vector, closer/further to/from pivot bead
-//                        double bondlength_ratio = guestmoleculeinfo[new_type].bondlength / guestmoleculeinfo[which_type].bondlength;
-//                        guestbeads[otherbeadid].x = guestbeads[pivotbeadid].x + bondvector.x * bondlength_ratio;
-//                        guestbeads[otherbeadid].y = guestbeads[pivotbeadid].y + bondvector.y * bondlength_ratio;
-//                        guestbeads[otherbeadid].z = guestbeads[pivotbeadid].z + bondvector.z * bondlength_ratio;
-//
-//                        double x_f, y_f, z_f;
-//                        CartesianToFractional(parameters.inv_t_matrix, 
-//                                             x_f, y_f, z_f, 
-//                                             guestbeads[otherbeadid].x, guestbeads[otherbeadid].y, guestbeads[otherbeadid].z);
-//                        guestbeads[otherbeadid].x_f = x_f;
-//                        guestbeads[otherbeadid].y_f = y_f;
-//                        guestbeads[otherbeadid].z_f = z_f;
-//                    }
-//                   
-//                    // OKAY, changed guestmolecules[idx_guestmolecule] type at this point... 
-//                    // if FIRST BEAD is moved outside of box, reflect ENTIRE guest to the other side
-//                    int first_beadid = guestmolecules[idx_guestmolecule].beadID[0];
-//                    double x_f_correction = 0.0; double y_f_correction = 0.0; double z_f_correction = 0.0;
-//                    if (guestbeads[first_beadid].x_f > 1.0 * parameters.replication_factor_a)
-//                        x_f_correction = - 1.0 * parameters.replication_factor_a;
-//                    if (guestbeads[first_beadid].y_f > 1.0 * parameters.replication_factor_b)
-//                        y_f_correction = - 1.0 * parameters.replication_factor_b;
-//                    if (guestbeads[first_beadid].z_f > 1.0 * parameters.replication_factor_c)
-//                        z_f_correction = - 1.0 * parameters.replication_factor_c;
-//                    if (guestbeads[first_beadid].x_f < 0.0)
-//                        x_f_correction = 1.0 * parameters.replication_factor_a;
-//                    if (guestbeads[first_beadid].y_f < 0.0)
-//                        y_f_correction = 1.0 * parameters.replication_factor_b;
-//                    if (guestbeads[first_beadid].z_f < 0.0)
-//                        z_f_correction = 1.0 * parameters.replication_factor_c;
-//
-//                    for (int b = 0; b < guestmoleculeinfo[new_type].nbeads; b++) {
-//                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                        // adjust fractional coordinates, then later Cartesian coords
-//                        guestbeads[beadid].x_f += x_f_correction;
-//                        guestbeads[beadid].y_f += y_f_correction;
-//                        guestbeads[beadid].z_f += z_f_correction;
-//                        double x, y, z;
-//                        FractionalToCartesian(parameters.t_matrix, 
-//                                             guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
-//                                             x, y, z); // TODO pass directly to here
-//                        guestbeads[beadid].x = x;
-//                        guestbeads[beadid].y = y;
-//                        guestbeads[beadid].z = z;
-//                        assert(OutsideUnitCell(guestbeads[first_beadid].x_f, 
-//                                               guestbeads[first_beadid].y_f, 
-//                                               guestbeads[first_beadid].z_f, 
-//                                               parameters) == false);
-//                    }
-//
-//                    // compute energy with the different identity
-//                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_new = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_new = E_gf_new + E_gg_new;
-//                    
-//                    // Accept move if, loosely, particle identity change was energetically favorable
-//                    double prob_acceptance_ID_swap = exp(-(E_new - E_old) / parameters.T) * parameters.fugacity[new_type] / parameters.fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[new_type]) + 1.0);
-//                    if (rand_for_acceptance < prob_acceptance_ID_swap) { 
-//                        stats.N_ID_swaps += 1;
-//                        
-//                        // keep track of energies
-//                        E_gg_this_cycle += E_gg_new - E_gg_old;
-//                        E_gf_this_cycle += E_gf_new - E_gf_old;
-//                        
-//                        // move last one of which_type to here, this one is deleted.
-//                        guestmolecule_index_list[which_type][idx_type] = guestmolecule_index_list[which_type][N_g[which_type] - 1]; 
-//                        // now this index is part of the other component ID
-//                        guestmolecule_index_list[new_type][N_g[new_type]] = idx_guestmolecule; 
-//
-//                        // update particle numbers
-//                        N_g[which_type] -= 1; // one less of which type
-//                        N_g[new_type] += 1; // one more of new type
-//                        
-//                        // actually replace this deleted bead with last bead in array
-//                        if ((nbeads_this == 2) & (nbeads_new == 1)) { 
-//                            // replace this deleted guest's beads with the beads at the end of guestbeads
-//                            int otherbead = (whichbead == 0) ? 1 : 0;
-//                            printf("\tother bead%d\n", otherbead); // for test
-//                            int beadid_to_remove = oldguestmolecule.beadID[otherbead];
-//                            // move last bead to here. incremented N_beads =- 1 already
-//                            guestbeads[beadid_to_remove] = guestbeads[N_beads];
-//                            // change molecule ID of beads for this guest
-//                            int otherguestmoleculeid =  guestbeads[N_beads].guestmoleculeID;
-//                            // change beadID in this other guest molecule to beadID_to_remove
-//                            bool found = false;
-//                            for (int bi = 0; bi < guestmoleculeinfo[guestmolecules[otherguestmoleculeid].type].nbeads; bi++) {
-//                                if (guestmolecules[otherguestmoleculeid].beadID[bi] == N_beads) {
-//                                    guestmolecules[otherguestmoleculeid].beadID[bi] = beadid_to_remove;
-//                                    found = true;
-//                                }
-//                            }
-//                            assert(found == true); // TODO remove later, for checking
-//                        }
-//                    }  // end "if we accept this move"
-//                    else { 
-//                        // if didn't accept
-//                        // go back to old guest molecule position
-//                        guestmolecules[idx_guestmolecule] = oldguestmolecule;
-//                        // replace beads with old beads
-//                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++)
-//                            guestbeads[oldguestmolecule.beadID[b]] = oldguestbeads[b];
-//                        
-//                        // ignore the last bead that we inserted by changing the number of beads
-//                        if ((nbeads_this == 1) & (nbeads_new == 2))
-//                            N_beads -= 1;
-//                        // change beads back to original value
-//                        if ((nbeads_this == 2) & (nbeads_new == 1))
-//                            N_beads += 1;
-//                    }  // end "if we didnt accept this move"
-//                } // end if N_g > 0
-//            } // end particle identity swap
+            //
+            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
+            //
+            else if (whichMCmove < parameters.p_exchange + parameters.p_move + parameters.p_identity_change) {
+                // if there are paricles of this type in the system
+                if (N_g[which_type] > 0) { 
+                    stats.N_ID_swap_trials += 1;
 
-//            //
-//            //  MC trial: Regrow (move molecule to a different, random location, like a move mostly)
-//            //
-//            else {
-//                if (parameters.debugmode) 
-//                    printf("Regrow Trial.\n");
-//                stats.N_regrow_trials += 1;
-//                
-//                if (N_g[which_type] > 0) { 
-//                    // if there are paricles of this type in the system
-//                    // Randomly choose an adsorbate of which_type
-//                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    
-//                    // randomly select guest of this type to propose to delete
-//                    int which_of_this_adsorbate_type = uniformint(generator);  // which guest to propose to delete of this type
-//
-//                    // loop through adsorbates vector until we find the which_of_this_adsorbate_type'th guest of this type
-//                    int count_this_type = 0;
-//                    int idx_regrow;  // index of adsorbate in adsorbates we propose to move
-//                    for (idx_regrow = 0; idx_regrow < adsorbates.size(); idx_regrow++) {
-//                        if (adsorbates[idx_regrow].type == which_type) {
-//                            if (count_this_type == which_of_this_adsorbate_type)
-//                                break;
-//                            count_this_type += 1;
-//                        }
-//                    }
-//                      
-//                    if (parameters.debugmode)
-//                        printf("\tProposal to regrow guest molecule %d\n", idx_regrow);
-//
-//                    // compute energy of this guest that we propose to regrow
-//                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
-//                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_regrow);
-//                    double E_old = E_gf_old + E_gg_old;
-//                    
-//                    // store this adsorbate's attributes before it was moved
-//                    // This way, if move is rejected, we can just replace it
-//                    Adsorbate old_adsorbate = adsorbates[idx_regrow];
-//
-//                    // insert at new position
-//
-//                    // get energy at new position
-//                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_new = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_new = E_gf_new + E_gg_new;
-//                    
-//                    // accept if, loosely, energeticall favorable
-//                    if (rand_for_acceptance < exp(-(E_new - E_old)/parameters.T)) {
-//                        stats.N_regrows += 1; 
-//                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
-//                        if (E_new > 1e6)
-//                            std::cout << "Move accepted with huge energy" << std::endl;
-//                        // already overwrote coords with new coords, no need to update coords in this case
-//                    }
-//                    else {
-//                        // change new, moved cords back to old coords
-//                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
-//                            int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                            guestbeads[beadid] = old_beads[b];
-//                        }
-//                    }
-//                } // end if N_g == 0
-//            }
+                    // pick which adsorbate of this type to change identity of
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    
+                    // randomly select guest of this type to propose to change identity of
+                    int which_of_this_adsorbate_type = uniformint(generator);  // which guest to propose to delete of this type
+                    
+                    // loop through adsorbates vector until we find the which_of_this_adsorbate_type'th guest of this type
+                    int count_this_type = 0;
+                    int idx_id_change;  // index of adsorbate in adsorbates we propose to change identity of 
+                    for (idx_id_change = 0; idx_id_change < adsorbates.size(); idx_id_change++) {
+                        if (adsorbates[idx_id_change].type == which_type) {
+                            if (count_this_type == which_of_this_adsorbate_type)
+                                break;
+                            count_this_type += 1;
+                        }
+                    }
+                    
+                    // compute energy of this guest that we propose to change ID of
+                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
+                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_id_change);
+                    double E_old = E_gf_old + E_gg_old;
+
+                    // randomly pick type to change this adsorbate to. 
+                    int change_to_type = which_type;
+                    while (change_to_type == which_type)
+                        change_to_type = type_generator(generator);
+                    
+                    if (parameters.debugmode)
+                        printf("\tProposal to change identity of guest molecule %d, of type %d, to type %d\n", 
+                                idx_id_change, adsorbates[idx_id_change].type, change_to_type);
+                    
+                    // store old type config so we can replace it later if MC move rejected
+                    Adsorbate old_adsorbate = adsorbates[idx_id_change];
+                    
+                    // insert a new adsorbate at this position
+                    // add new guest of this type from the template (easier to start over)
+                    Adsorbate new_adsorbate = adsorbatetemplates[change_to_type];
+                    // if >1 beads, perform a random rotation
+                    if (new_adsorbate.nbeads > 1)
+                        PerformUniformRandomRotation(new_adsorbate, generator, std_normal_distn);
+
+                    // translate adsorbate to share same location as first bead
+                    boo::vector<double> x_first_bead(3);
+                    x_first_bead[0] = adsorbates[idx_id_change].bead_xyz(0, 0);
+                    x_first_bead[1] = adsorbates[idx_id_change].bead_xyz(1, 0);
+                    x_first_bead[2] = adsorbates[idx_id_change].bead_xyz(2, 0);
+                    new_adsorbate.translate_by_Cartesian_vector(x_first_bead, t_matrix, inv_t_matrix, uc_reps);
+
+                    // Finally, replace adsorbate idx_id_change with this new_adsorbate of different identity
+                    adsorbates[idx_id_change] = new_adsorbate;
+                    
+                    // compute energy of this new guest of different identity
+                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
+                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_id_change);
+                    double E_new = E_gf_new + E_gg_new;
+
+                    // Accept move if, loosely, particle identity change was energetically favorable
+                    double prob_acceptance_ID_swap = exp(-(E_new - E_old) / parameters.T) * fugacity[change_to_type] / fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[change_to_type]) + 1.0);
+                    if (rand_for_acceptance < prob_acceptance_ID_swap) { 
+                        stats.N_ID_swaps += 1;
+                        
+                        // keep track of energies
+                        E_gg_this_cycle += E_gg_new - E_gg_old;
+                        E_gf_this_cycle += E_gf_new - E_gf_old;
+                        
+                        // update particle numbers
+                        N_g[which_type] -= 1; // one less of which type
+                        N_g[change_to_type] += 1; // one more of new type
+                    }  // end "if we accept this move"
+                    else { 
+                        // if didn't accept, replace adsorbate with original one
+                        adsorbates[idx_id_change] = old_adsorbate;
+                    } 
+                } // end if N_g > 0
+            } // end particle identity swap
+
+            //
+            //  MC trial: Regrow (essentially a move)
+            //  Delete adsorbate, insert at new position
+            //  But in practice, change coords of adsorbate to new position in random location in unit cell
+            //
+            else {
+                if (parameters.debugmode) 
+                    printf("Regrow Trial.\n");
+                stats.N_regrow_trials += 1;
+                
+                if (N_g[which_type] > 0) { 
+                    // if there are paricles of this type in the system
+                    // Randomly choose an adsorbate of which_type
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    
+                    // randomly select guest of this type to propose to regrow
+                    int which_of_this_adsorbate_type = uniformint(generator);  // which guest to propose to delete of this type
+
+                    // loop through adsorbates vector until we find the which_of_this_adsorbate_type'th guest of this type
+                    int count_this_type = 0;
+                    int idx_regrow;  // index of adsorbate in adsorbates we propose to move
+                    for (idx_regrow = 0; idx_regrow < adsorbates.size(); idx_regrow++) {
+                        if (adsorbates[idx_regrow].type == which_type) {
+                            if (count_this_type == which_of_this_adsorbate_type)
+                                break;
+                            count_this_type += 1;
+                        }
+                    }
+                      
+                    if (parameters.debugmode)
+                        printf("\tProposal to regrow guest molecule %d\n", idx_regrow);
+
+                    // compute energy of this guest that we propose to regrow
+                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
+                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_regrow);
+                    double E_old = E_gf_old + E_gg_old;
+                    
+                    // store this adsorbate's attributes before it was moved
+                    // This way, if move is rejected, we can just replace it
+                    Adsorbate old_adsorbate = adsorbates[idx_regrow];
+
+                    // insert at new position
+                    // add new guest of this type from the template (easier to start over)
+                    Adsorbate regrown_adsorbate = adsorbatetemplates[which_type];
+                    // if >1 beads, perform a random rotation
+                    if (regrown_adsorbate.nbeads > 1)
+                        PerformUniformRandomRotation(regrown_adsorbate, generator, std_normal_distn);
+
+                    // translate to these fractional coords
+                    boo::vector<double> xf(3);
+                    xf[0] =  uniform01(generator) * uc_reps[0];
+                    xf[1] =  uniform01(generator) * uc_reps[1];
+                    xf[2] =  uniform01(generator) * uc_reps[2];
+                    // =  these Cartesian
+                    boo::vector<double> x = boo::prod(t_matrix, xf);
+                    
+                    // translate adsorbate to these coords (also updates fractional coords)
+                    regrown_adsorbate.translate_by_Cartesian_vector(x, t_matrix, inv_t_matrix, uc_reps);
+
+                    // replace adsorbate with this one.
+                    adsorbates[idx_regrow] = regrown_adsorbate;
+                    
+                    // compute energy at this new position
+                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
+                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_regrow);
+                    double E_new = E_gf_new + E_gg_new;
+
+                    // accept if, loosely, energeticall favorable
+                    if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
+                        stats.N_regrows += 1; 
+                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
+                        if (E_new > 1e6)
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                        // already overwrote adsorbate, so no need to do anything
+                    }
+                    else {
+                        // put back old adsorbate
+                        adsorbates[idx_regrow] = old_adsorbate;
+                    }
+                } // end if N_g == 0
+            }
 
             //
             // Collect statistics
