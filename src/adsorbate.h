@@ -14,6 +14,20 @@
 #include <boost/geometry/geometry.hpp>
 namespace boo = boost::numeric::ublas;
 
+
+bool OutsideUnitCell(double & x_f, double & y_f, double & z_f,
+                     std::vector<int> & uc_reps) {
+    // check if particle is outside bounding box
+    if ((x_f > uc_reps[0]) | 
+        (y_f > uc_reps[1]) | 
+        (z_f > uc_reps[2]) | 
+        (x_f < 0.0) | (y_f < 0.0) | (z_f < 0.0)) {
+        return true;
+    }
+    else
+        return false;
+}
+
 class Adsorbate {
     public:
         int type;  // adsorbate identity
@@ -35,15 +49,41 @@ class Adsorbate {
                 beadtypes[i] = -1;
         }
 
-        void translate_by_Cartesian_vector(boo::vector<double> & dx, boo::matrix<double> & inv_t_matrix) {
+        void translate_by_Cartesian_vector(boo::vector<double> & dx, 
+                                           boo::matrix<double> & t_matrix,
+                                           boo::matrix<double> & inv_t_matrix,
+                                           std::vector<int> & uc_reps) {
             // translate by Cartesian vector dx
+            
+            // update Cartesian coords first
             for (int b = 0; b < nbeads; b++) {
                 bead_xyz(0, b) += dx[0];
                 bead_xyz(1, b) += dx[1];
                 bead_xyz(2, b) += dx[2];
             }
+
             // update fractional coords
             bead_xyz_f = boo::prod(inv_t_matrix, bead_xyz);
+            
+            // if FIRST bead outside simulation box, move ENTIRE guest
+            bool outside_simbox = false;
+            for (int i = 0; i < 3; i++) {
+                // loop over components
+                if (bead_xyz_f(i, 0) > 1.0 * uc_reps[i]) {
+                    for (int b = 0; b < nbeads; b++)
+                        bead_xyz_f(i, b) -= 1.0 * uc_reps[i];
+                    outside_simbox = true;
+                }
+                else if (bead_xyz_f(i, 0) < 0.0) {
+                    for (int b = 0; b < nbeads; b++)
+                        bead_xyz_f(i, b) += 1.0 * uc_reps[i];
+                    outside_simbox = true;
+                }
+            }
+            if (outside_simbox) {
+                // update Cartesian
+                bead_xyz = boo::prod(t_matrix, bead_xyz_f);
+            }
         }
 
         void print_info() {
@@ -155,6 +195,10 @@ std::map<std::string, int> GetBeadMap(std::vector<std::string> adsorbatelist, bo
         linestream >> nbeads;
         if (verbose)
             printf("Adsorbate %s: %d beads.\n", adsorbatelist[a].c_str(), nbeads);
+        if (!(nbeads > 0)) {
+            printf("Number of beads not greater than zero. Something wrong in format of adsorbate info file.\n");
+            exit(EXIT_FAILURE);
+        }
 
         // Get the bead names
         std::getline(adsorbatefile, line);
@@ -228,7 +272,6 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
         getline(adsorbatefile, line);  // "xyz"
         for (int b = 0; b < nbeads; b++) {
             std::getline(adsorbatefile, line);
-            std::cout << line << std::endl;
             linestream.str(line); linestream.clear();
             
             adsorbate.beadtypes[b] = beadlabel_to_int[beadnames[b]];

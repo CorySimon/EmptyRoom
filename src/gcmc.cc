@@ -32,7 +32,6 @@ namespace boo = boost::numeric::ublas;
 #include <sys/time.h>
 //#include "pocketblocking.h"
 #define min_r .0000000000000001  // don't want to divide by zero...
-#define MAX_GUESTS 2000 // max number of guests in an array
 
 /* 
  * Global Variables for ease. BE CAREFUL!
@@ -84,19 +83,6 @@ double ReadTimer() {
     }
     gettimeofday( &end, NULL );
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
-}
-
-bool OutsideUnitCell(double x_f, double y_f, double z_f,
-                     std::vector<int> uc_reps) {
-    // check if outside bounding box
-    if ((x_f > uc_reps[0]) | 
-        (y_f > uc_reps[1]) | 
-        (z_f > uc_reps[2]) | 
-        (x_f < 0.0) | (y_f < 0.0) | (z_f < 0.0)) {
-        return true;
-    }
-    else
-        return false;
 }
 
 double WrapToInterval(double x, double z) {
@@ -327,7 +313,7 @@ int main(int argc, char *argv[])
     // create reverse map
     for (std::map<std::string, int>::iterator it=beadlabel_to_int.begin(); it!=beadlabel_to_int.end(); ++it)
         int_to_beadlabel[it->second] = it->first;
-    adsorbatetemplates = GetAdsorbateTemplates(adsorbate, beadlabel_to_int, true);
+    adsorbatetemplates = GetAdsorbateTemplates(adsorbate, beadlabel_to_int, false);
     int nuniquebeads = beadlabel_to_int.size();
     if (parameters.verbose) {
         printf("Adsorbate templates read. %d unique beads.\n", nuniquebeads);
@@ -558,7 +544,7 @@ int main(int argc, char *argv[])
                 boo::vector<double> x = boo::prod(t_matrix, xf);
                 
                 // translate adsorbate to these coords (also updates fractional coords)
-                inserted_adsorbate.translate_by_Cartesian_vector(x, inv_t_matrix);
+                inserted_adsorbate.translate_by_Cartesian_vector(x, t_matrix, inv_t_matrix, uc_reps);
 
                 // append this new adsorbate to end of adsorabtes vector
                 adsorbates.push_back(inserted_adsorbate);
@@ -663,131 +649,74 @@ int main(int argc, char *argv[])
                 }
             }
             
-//            //
-//            //  MC trial:  Translation
-//            //
-//            else if (whichMCmove < parameters.p_exchange + parameters.p_move) {
-//                if (parameters.debugmode) 
-//                    printf("Translation Trial.\n");
-//                stats.N_move_trials += 1;
-//
-//                if (N_g[which_type] > 0) {
-//                    // Randomly choose an adsorbate of which_type
-//                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
-//                    uniformint.param(new_range);
-//                    int idx_move_type = uniformint(generator);  // corresponds to index of this type in guestmolecule_index
-//                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_move_type]; // global ID in guests
-//                    
-//                    // compute energy in current (old) position
-//                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_old = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_old = E_gf_old + E_gg_old;
-//
-//                    // get perturbation of the position in Cartesian space
-//                    double x_perturb = parameters.delta * (uniform01(generator) - 0.5);
-//                    double y_perturb = parameters.delta * (uniform01(generator) - 0.5);
-//                    double z_perturb = parameters.delta * (uniform01(generator) - 0.5);
-//
-//                    GuestBead old_beads[2];  // for old coords of beads
-//                    // move each bead of this guest the same amount
-//                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
-//                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                        // store old coords of beads
-//                        old_beads[b] = guestbeads[beadid];
-//                        
-//                        // perturb bead
-//                        guestbeads[beadid].x += x_perturb;
-//                        guestbeads[beadid].y += y_perturb;
-//                        guestbeads[beadid].z += z_perturb;
-//                        // convert back to fractional coords
-//                        double x_f, y_f, z_f;
-//                        CartesianToFractional(parameters.inv_t_matrix, 
-//                                             x_f, y_f, z_f, 
-//                                             guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
-//                        guestbeads[beadid].x_f = x_f;
-//                        guestbeads[beadid].y_f = y_f;
-//                        guestbeads[beadid].z_f = z_f;
-//
-//                    }
-//                    
-//                    // if FIRST BEAD is moved outside of box, reflect ENTIRE guest to the other side
-//                    int first_beadid = guestmolecules[idx_guestmolecule].beadID[0];
-//                    double x_f_correction = 0.0; double y_f_correction = 0.0; double z_f_correction = 0.0;
-//                    if (guestbeads[first_beadid].x_f > 1.0 * parameters.replication_factor_a)
-//                        x_f_correction = - 1.0 * parameters.replication_factor_a; 
-//                    if (guestbeads[first_beadid].y_f > 1.0 * parameters.replication_factor_b)
-//                        y_f_correction = - 1.0 * parameters.replication_factor_b; 
-//                    if (guestbeads[first_beadid].z_f > 1.0 * parameters.replication_factor_c)
-//                        z_f_correction = - 1.0 * parameters.replication_factor_c; 
-//                    if (guestbeads[first_beadid].x_f < 0.0)
-//                        x_f_correction = 1.0 * parameters.replication_factor_a;
-//                    if (guestbeads[first_beadid].y_f < 0.0)
-//                        y_f_correction = 1.0 * parameters.replication_factor_b;
-//                    if (guestbeads[first_beadid].z_f < 0.0)
-//                        z_f_correction = 1.0 * parameters.replication_factor_c;
-//
-//                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
-//                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                        // adjust fractional coordinates, then later Cartesian coords
-//                        guestbeads[beadid].x_f += x_f_correction;
-//                        guestbeads[beadid].y_f += y_f_correction;
-//                        guestbeads[beadid].z_f += z_f_correction;
-//                        double x, y, z;
-//                        FractionalToCartesian(parameters.t_matrix, 
-//                                             guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
-//                                             x, y, z); // TODO pass directly to here
-//                        guestbeads[beadid].x = x;
-//                        guestbeads[beadid].y = y;
-//                        guestbeads[beadid].z = z;
-//                    }
-//                    assert(OutsideUnitCell(guestbeads[first_beadid].x_f, 
-//                                           guestbeads[first_beadid].y_f, 
-//                                           guestbeads[first_beadid].z_f, 
-//                                           parameters) == false);
-//
-//                    // get energy at new position
-//                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_new = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_new = E_gf_new + E_gg_new;
-//                    
-//                    // accept if, loosely, energeticall favorable
-//                    if (rand_for_acceptance < exp(-(E_new - E_old)/parameters.T)) {
-//                        stats.N_moves += 1; 
-//                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
-//                        if (E_new > 1e6)
-//                            std::cout << "Move accepted with huge energy" << std::endl;
-//                        // already overwrote coords with new coords, no need to update coords in this case
-//                    }
-//                    else {
-//                        // change new, moved cords back to old coords
-//                        for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
-//                            int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                            guestbeads[beadid] = old_beads[b];
-//                        }
-//                    }
-//                } // end if N_g == 0
-//            } // end translation
-//
+            //
+            //  MC trial:  Translation
+            //
+            else if (whichMCmove < parameters.p_exchange + parameters.p_move) {
+                if (parameters.debugmode) 
+                    printf("Translation Trial.\n");
+                stats.N_move_trials += 1;
+
+                if (N_g[which_type] > 0) {
+                    // Randomly choose an adsorbate of which_type
+                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
+                    uniformint.param(new_range);
+                    
+                    // randomly select guest of this type to propose to delete
+                    int which_of_this_adsorbate_type = uniformint(generator);  // which guest to propose to delete of this type
+
+                    // loop through adsorbates vector until we find the which_of_this_adsorbate_type'th guest of this type
+                    int count_this_type = 0;
+                    int idx_move;  // index of adsorbate in adsorbates we propose to move
+                    for (idx_move = 0; idx_move < adsorbates.size(); idx_move++) {
+                        if (adsorbates[idx_move].type == which_type) {
+                            if (count_this_type == which_of_this_adsorbate_type)
+                                break;
+                            count_this_type += 1;
+                        }
+                    }
+                      
+                    if (parameters.debugmode)
+                        printf("\tProposal to move guest molecule %d\n", idx_move);
+                    
+                    // compute energy of this guest that we propose to move
+                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_move], grid_info, energy_grids);
+                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_move);
+                    double E_old = E_gf_old + E_gg_old;
+
+                    // store this adsorbate's attributes before it was moved
+                    // This way, if move is rejected, we can just replace it
+                    Adsorbate old_adsorbate = adsorbates[idx_move];
+
+                    // get perturbation of the position in Cartesian space
+                    boo::vector<double> dx(3);
+                    for (int i_ = 0; i_ < 3; i_++)
+                        dx[i_] = parameters.delta * (uniform01(generator) - 0.5);
+                    
+                    // translate adsorbate (takes care of periodic boundary conditions)
+                    adsorbates[idx_move].translate_by_Cartesian_vector(dx, t_matrix, inv_t_matrix, uc_reps);
+                    
+                    // compute energy of this guest that we propose to move in its new position
+                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_move], grid_info, energy_grids);
+                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_move);
+                    double E_new = E_gf_new + E_gg_new;
+
+                    // accept if, loosely, energeticall favorable
+                    if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
+                        stats.N_moves += 1; 
+                        E_gg_this_cycle += E_gg_new - E_gg_old; 
+                        E_gf_this_cycle += E_gf_new - E_gf_old;
+                        if (E_new > 1e6)
+                            std::cout << "Move accepted with huge energy" << std::endl;
+                        // already overwrote coords with new coords, no need to update coords in this case
+                    }
+                    else {
+                        // replace newly proposed adsorbate position with old position
+                        adsorbates[idx_move] = old_adsorbate;
+                    }
+                } // end if N_g == 0
+            } // end translation
+
 //            //
 //            //  PARTICLE IDENTITY CHANGE FOR DUAL COMPONENT
 //            //
@@ -1034,7 +963,7 @@ int main(int argc, char *argv[])
 //                    }  // end "if we didnt accept this move"
 //                } // end if N_g > 0
 //            } // end particle identity swap
-//
+
 //            //
 //            //  MC trial: Regrow (move molecule to a different, random location, like a move mostly)
 //            //
@@ -1048,70 +977,34 @@ int main(int argc, char *argv[])
 //                    // Randomly choose an adsorbate of which_type
 //                    decltype(uniformint.param()) new_range(0, N_g[which_type] - 1); // set new range for rng
 //                    uniformint.param(new_range);
-//                    int idx_regrow_type = uniformint(generator);  // corresponds to index of this type in guestmolecule_index
-//                    int idx_guestmolecule = guestmolecule_index_list[which_type][idx_regrow_type]; // global ID in guests
 //                    
-//                    // compute energy in current (old) position
-//                    double E_gf_old = GuestFrameworkEnergy(idx_guestmolecule, 
-//                                guestmoleculeinfo,
-//                                guestmolecules,
-//                                guestbeads,
-//                                grid_info,
-//                                energy_grids);  // framework-guest
-//                    double E_gg_old = GuestGuestEnergy(N_g_total,
-//                            idx_guestmolecule, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            parameters);  // guest-guest
-//                    double E_old = E_gf_old + E_gg_old;
+//                    // randomly select guest of this type to propose to delete
+//                    int which_of_this_adsorbate_type = uniformint(generator);  // which guest to propose to delete of this type
 //
-//                    GuestBead old_beads[2];  // for old coords of beads
-//                    // insert this guest at a new position
-//                    for (int b = 0; b < guestmoleculeinfo[which_type].nbeads; b++) {
-//                        int beadid = guestmolecules[idx_guestmolecule].beadID[b];
-//                        // store old coords of beads
-//                        old_beads[b] = guestbeads[beadid];
-//                        
-//                        // randomly insert first bead
-//                        if (b == 0) {
-//                            guestbeads[beadid].x_f = uniform01(generator) * parameters.replication_factor_a;
-//                            guestbeads[beadid].y_f = uniform01(generator) * parameters.replication_factor_b;
-//                            guestbeads[beadid].z_f = uniform01(generator) * parameters.replication_factor_c;
-//                            
-//                            double x, y, z; 
-//                            FractionalToCartesian(parameters.t_matrix, 
-//                                                  guestbeads[beadid].x_f, guestbeads[beadid].y_f, guestbeads[beadid].z_f, 
-//                                                  x, y, z);
-//                            guestbeads[beadid].x = x; 
-//                            guestbeads[beadid].y = y; 
-//                            guestbeads[beadid].z = z; 
+//                    // loop through adsorbates vector until we find the which_of_this_adsorbate_type'th guest of this type
+//                    int count_this_type = 0;
+//                    int idx_regrow;  // index of adsorbate in adsorbates we propose to move
+//                    for (idx_regrow = 0; idx_regrow < adsorbates.size(); idx_regrow++) {
+//                        if (adsorbates[idx_regrow].type == which_type) {
+//                            if (count_this_type == which_of_this_adsorbate_type)
+//                                break;
+//                            count_this_type += 1;
 //                        }
-//                        // if 2nd bead, insert on sphere centered at first bead
-//                        if (b == 1) {
-//                            double theta = 2 * M_PI * uniform01(generator);
-//                            double phi = acos(2 * uniform01(generator) - 1);
+//                    }
+//                      
+//                    if (parameters.debugmode)
+//                        printf("\tProposal to regrow guest molecule %d\n", idx_regrow);
 //
-//                            // insert second bead at Cartesian coords
-//                            guestbeads[beadid].x = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].x + 
-//                                                    guestmoleculeinfo[which_type].bondlength * sin(phi) * cos(theta);
-//                            guestbeads[beadid].y = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].y +
-//                                                    guestmoleculeinfo[which_type].bondlength * sin(phi) * sin(theta);
-//                            guestbeads[beadid].z = guestbeads[guestmolecules[idx_guestmolecule].beadID[0]].z + 
-//                                                    guestmoleculeinfo[which_type].bondlength * cos(phi);
+//                    // compute energy of this guest that we propose to regrow
+//                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
+//                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_regrow);
+//                    double E_old = E_gf_old + E_gg_old;
+//                    
+//                    // store this adsorbate's attributes before it was moved
+//                    // This way, if move is rejected, we can just replace it
+//                    Adsorbate old_adsorbate = adsorbates[idx_regrow];
 //
-//                            // convert to fractional to make sure we are inside bounding box
-//                            double x_f, y_f, z_f;
-//                            CartesianToFractional(parameters.inv_t_matrix, 
-//                                                  x_f, y_f, z_f, 
-//                                                  guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
-//                            
-//                            // SECOND bead is allowed outside simulation box. do not worry about PBC here!  assign fractional coords
-//                            guestbeads[beadid].x_f = x_f;
-//                            guestbeads[beadid].y_f = y_f;
-//                            guestbeads[beadid].z_f = z_f;
-//                        }  // end "if second bead..."
-//                    }  // end loop over beads
+//                    // insert at new position
 //
 //                    // get energy at new position
 //                    double E_gf_new = GuestFrameworkEnergy(idx_guestmolecule, 
@@ -1145,26 +1038,20 @@ int main(int argc, char *argv[])
 //                    }
 //                } // end if N_g == 0
 //            }
-//
-//            // assert N_g < MAX_GUESTS
-//            if (N_g_total >= MAX_GUESTS - 2) {
-//                printf("N_g > MAX_GUESTS!\n");
-//                exit(EXIT_FAILURE);
-//            }
-//
-//            //
-//            // Collect statistics
-//            //
-//            if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.samplefrequency == 0)) {
-//                stats.N_samples += 1;
-//                for (int a_i = 0; a_i < parameters.numadsorbates; a_i++) {
-//                    stats.N_g_avg[a_i] += N_g[a_i];
-//                    stats.N_g2_avg[a_i] += N_g[a_i] * N_g[a_i];
-//                }
-//                stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
-//                stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
-//            }
-//
+
+            //
+            // Collect statistics
+            //
+            if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.samplefrequency == 0)) {
+                stats.N_samples += 1;
+                for (int a_i = 0; a_i < parameters.numadsorbates; a_i++) {
+                    stats.N_g_avg[a_i] += N_g[a_i];
+                    stats.N_g2_avg[a_i] += N_g[a_i] * N_g[a_i];
+                }
+                stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
+                stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
+            }
+
             //
             // Print stuff if debug mode
             //
@@ -1192,10 +1079,20 @@ int main(int argc, char *argv[])
                     typecounts[adsorbates[g].type] += 1;
 
                     // assert first bead is inside unit cell
-                    assert(OutsideUnitCell(adsorbates[g].bead_xyz_f(0, 0),
+                    if (OutsideUnitCell(adsorbates[g].bead_xyz_f(0, 0),
                                            adsorbates[g].bead_xyz_f(1, 0),
                                            adsorbates[g].bead_xyz_f(2, 0),
-                                             uc_reps) == false);
+                                             uc_reps) == true) {
+                        printf("First bead of adsorbate %d outside unit cell\n", g);
+                        printf("uc reps: %d by %d by %d.\n", uc_reps[0], uc_reps[1], uc_reps[2]);
+                        for (int bb = 0; bb < adsorbates[g].nbeads; bb++) {
+                            printf("Fractional coords bead %d: (%f, %f, %f)\n", bb,
+                                                            adsorbates[g].bead_xyz_f(0, bb),
+                                                            adsorbates[g].bead_xyz_f(1, bb),
+                                                            adsorbates[g].bead_xyz_f(2, bb));
+                        }
+                        exit(EXIT_FAILURE);
+                    }
 
 
                     // assert guest beads fractional and cartesian coords match
@@ -1250,58 +1147,58 @@ int main(int argc, char *argv[])
         }  // end inner cycle loop
 
     }  // end outer cycle loop
-//    
-//    // take avg
-//    stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
-//    stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
-//
-//    double sim_time = ReadTimer() - start_of_sim_time;
-//    fprintf(outputfile, "\nEnergy checks\n");
-//    // check energy calcs
-//    double E_gg_system = TotalGuestGuest(N_g_total,
-//                        guestmoleculeinfo,
-//                        guestmolecules,
-//                        guestbeads,
-//                        parameters);
-//    double E_gf_system = TotalGuestFrameworkEnergy(N_g_total, 
-//                            guestmoleculeinfo,
-//                            guestmolecules,
-//                            guestbeads,
-//                            grid_info,
-//                            energy_grids);
-//    fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
-//    fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
-//    fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);
-//    fprintf(outputfile, "    E_gf from adding dE's throughout simulation: %f K\n", E_gf_this_cycle);
-//    
-//    // write stats
-//    fprintf(outputfile, "\nGCMC Statistics\n");
-//    fprintf(outputfile, "    Simulation time: %f min\n", sim_time / 60.0);
-//    fprintf(outputfile, "    Insertions: %d / %d (%f %% accepted)\n", stats.N_insertions, stats.N_insertion_trials, 100.0 * stats.N_insertions / stats.N_insertion_trials);
-//    fprintf(outputfile, "    Deletions: %d / %d (%f %% accepted)\n", stats.N_deletions, stats.N_deletion_trials, 100.0 * stats.N_deletions / stats.N_deletion_trials);
-//    if (parameters.p_move > 0.0)
-//        fprintf(outputfile, "    Moves: %d / %d (%f %% accepted)\n", stats.N_moves, stats.N_move_trials, 100.0 * stats.N_moves / stats.N_move_trials);
-//    if (parameters.p_identity_change > 0.0)
-//        fprintf(outputfile, "    Identity changes: %d / %d (%f %% accepted)\n", stats.N_ID_swaps, stats.N_ID_swap_trials, 100.0 * stats.N_ID_swaps / stats.N_ID_swap_trials);
-//    if (parameters.p_regrow > 0.0)
-//        fprintf(outputfile, "    Regrows: %d / %d (%f %% accepted)\n", stats.N_regrows, stats.N_regrow_trials, 100.0 * stats.N_regrows / stats.N_regrow_trials);
-//    fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
-//    
-//    // write loadings
-//    for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
-//        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
-//        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
-//        double N_confidence_bound = sqrt(stats.N_g2_avg[n_c] - stats.N_g_avg[n_c] * stats.N_g_avg[n_c])/sqrt(1.0 * stats.N_samples); // sigma / sqrt(N)
-//
-//        fprintf(outputfile, "\n    Adsorbate: %s\n", parameters.adsorbate[n_c].c_str());
-//        fprintf(outputfile, "        Fugacity = %f Pa\n", parameters.fugacity[n_c]);
-//        fprintf(outputfile, "        <N_g> (%s) = %f +/- %f molecules/ unit cell\n", parameters.adsorbate[n_c].c_str(), 1.0 * stats.N_g_avg[n_c] / parameters.replication_factor_a / parameters.replication_factor_b / parameters.replication_factor_c, N_confidence_bound);
-//        fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
-//        fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", parameters.adsorbate[n_c].c_str(), stats.N_g_avg[n_c]/volume/6.022e-7/framework.density);
-//    }
-//    fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
-//    fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
-//
-//
-//    fclose(outputfile); 
+    
+    // take avg
+    stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
+    stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
+
+    double sim_time = ReadTimer() - start_of_sim_time;
+    
+    //
+    // check that energy was conserved.
+    // Calculate system energy from scratch and compare to energy at this cycle
+    //
+    fprintf(outputfile, "\nEnergy checks\n");
+
+    double E_gg_system = TotalGuestGuestEnergy(adsorbates);
+    double E_gf_system = TotalGuestFrameworkEnergy(adsorbates, grid_info, energy_grids);
+    
+    fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
+    fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
+    fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);
+    fprintf(outputfile, "    E_gf from adding dE's throughout simulation: %f K\n", E_gf_this_cycle);
+    
+    //   
+    // write stats to outputfile
+    //
+    fprintf(outputfile, "\nGCMC Statistics\n");
+    fprintf(outputfile, "    Simulation time: %f min\n", sim_time / 60.0);
+    fprintf(outputfile, "    Insertions: %d / %d (%f %% accepted)\n", stats.N_insertions, stats.N_insertion_trials, 100.0 * stats.N_insertions / stats.N_insertion_trials);
+    fprintf(outputfile, "    Deletions: %d / %d (%f %% accepted)\n", stats.N_deletions, stats.N_deletion_trials, 100.0 * stats.N_deletions / stats.N_deletion_trials);
+    if (parameters.p_move > 0.0)
+        fprintf(outputfile, "    Moves: %d / %d (%f %% accepted)\n", stats.N_moves, stats.N_move_trials, 100.0 * stats.N_moves / stats.N_move_trials);
+    if (parameters.p_identity_change > 0.0)
+        fprintf(outputfile, "    Identity changes: %d / %d (%f %% accepted)\n", stats.N_ID_swaps, stats.N_ID_swap_trials, 100.0 * stats.N_ID_swaps / stats.N_ID_swap_trials);
+    if (parameters.p_regrow > 0.0)
+        fprintf(outputfile, "    Regrows: %d / %d (%f %% accepted)\n", stats.N_regrows, stats.N_regrow_trials, 100.0 * stats.N_regrows / stats.N_regrow_trials);
+    fprintf(outputfile, "\n    Number of samples: %d\n", stats.N_samples);
+    
+    //
+    // write loadings component loadings to outputfile
+    //
+    for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
+        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
+        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
+        double N_confidence_bound = sqrt(stats.N_g2_avg[n_c] - stats.N_g_avg[n_c] * stats.N_g_avg[n_c])/sqrt(1.0 * stats.N_samples); // sigma / sqrt(N)
+
+        fprintf(outputfile, "\n    Adsorbate: %s\n", adsorbate[n_c].c_str());
+        fprintf(outputfile, "        Fugacity = %f Pa\n", fugacity[n_c]);
+        fprintf(outputfile, "        <N_g> (%s) = %f +/- %f molecules/ unit cell\n", adsorbate[n_c].c_str(), 1.0 * stats.N_g_avg[n_c] / uc_reps[0] / uc_reps[1] / uc_reps[2], N_confidence_bound);
+        fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
+        fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7 / framework.density);
+    }
+    fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
+    fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
+
+    fclose(outputfile); 
 }
