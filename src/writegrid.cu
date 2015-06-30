@@ -69,10 +69,10 @@ int main(int argc, char *argv[]) {
     ReadSimulationInputFile(parameters);
     if (parameters.verbose) printf("Read simulation.input\n");
     // only need UC to be once the cutoff
-    TripleInt uc_reps = ReadUnitCellReplicationFile(parameters.frameworkname, "once");
-    parameters.replication_factor_a = uc_reps.arg1;
-    parameters.replication_factor_b = uc_reps.arg2;
-    parameters.replication_factor_c = uc_reps.arg3;
+    std::vector<int> uc_reps = ReadUnitCellReplicationFile(parameters.frameworkname, "once");
+    parameters.replication_factor_a = uc_reps[0];
+    parameters.replication_factor_b = uc_reps[1];
+    parameters.replication_factor_c = uc_reps[2];
     if (parameters.verbose) printf("Read .uc replication file\n");
 
     //
@@ -85,9 +85,9 @@ int main(int argc, char *argv[]) {
     if (parameters.verbose) printf("Constructed Framework object\n");
 
     // grab sigma/epsilon of adsorbate
-    PairDouble eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate);
-    parameters.epsilon_guest = eps_sig.arg1;
-    parameters.sigma_guest = eps_sig.arg2;
+    std::vector<double> eps_sig = GrabGuestForceFieldParams(forcefield, parameters.adsorbate);
+    parameters.epsilon_guest = eps_sig[0];
+    parameters.sigma_guest = eps_sig[1];
     if (parameters.verbose) printf("Fetched adsorbate FF parameters\n");
 
     //
