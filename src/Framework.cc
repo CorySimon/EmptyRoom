@@ -41,23 +41,42 @@ Framework::Framework(std::string structurename, bool verbose /*=false*/) {
     input.str(line); input.clear();
     input >> noatoms;
 
-    // read atoms
-    x_f.resize(noatoms); // give size to vectors
+    // give size to vectors
+    x_f.resize(noatoms);
     y_f.resize(noatoms);
     z_f.resize(noatoms);
     identity.resize(noatoms);
     mass.resize(noatoms);
-
+    charge.resize(noatoms);
+    
+    // loop over all atoms and grab fractional coords, identity, and charge
     getline(cssr,line); // waste a line
     for (int i = 0; i < noatoms; i++) {
         getline(cssr,line);
         input.str(line); input.clear();
         int junk; std::string junk2;
         input >> junk >> identity[i] >> x_f[i] >> y_f[i] >> z_f[i];
+        for (int jj = 0; jj < 8; jj++)
+            input >> junk;
+        input >> charge[i];
         // reflect fractional coordiantes in [0,1]
         x_f[i] = fmod(x_f[i], 1.0);
         y_f[i] = fmod(y_f[i], 1.0);
         z_f[i] = fmod(z_f[i], 1.0);
+    }
+
+    //
+    // Check for charge neutrality
+    //
+    double tolerance = 0.007;  // tol for charge neutrality
+    net_charge = 0.0;
+    for (int i = 0; i < noatoms; i++)
+        net_charge += charge[i];
+    if ((net_charge > tolerance) | (net_charge < - tolerance)) {
+        printf("Framework %s is not charge neutral.\nNet charge = %f\n", 
+            name.c_str(), net_charge);
+        printf("\tTolerance used = %f\n", tolerance);
+        exit(EXIT_FAILURE);
     }
 
     //
@@ -149,9 +168,9 @@ Framework::Framework(std::string structurename, bool verbose /*=false*/) {
         printf("a = %f, b = %f, c = %f\n", a, b, c);
         printf("alpha = %f, beta = %f, gamma = %f\n", alpha*180/M_PI, beta*180/M_PI, gamma*180/M_PI);
         printf("no of atoms: %d\n", noatoms);
-        printf("Atom x_f y_f z_f mass\n---------------\n");
+        printf("Atom x_f y_f z_f mass charge\n---------------\n");
         for (int i = 0; i < noatoms; i++) {
-            printf("%s %f %f %f %f\n", identity[i].c_str(), x_f[i], y_f[i], z_f[i], mass[i]);
+            printf("%s %f %f %f %f %f\n", identity[i].c_str(), x_f[i], y_f[i], z_f[i], mass[i], charge[i]);
         }
 
         printf("\nCrystal density (kg/m3) = %f\n", density);

@@ -12,18 +12,28 @@
 
 class Framework {
 public:
-    Framework(std::string structurname, bool verbose=false); // constructor
+    // constructor
+    Framework(std::string structurname, bool verbose=false); 
 
-    std::string name; // name of structure
-    double a, b, c; // unit cell dimensions
-    double alpha, beta, gamma; // unit cell angles
-    int noatoms; // number of atoms
-    // store atoms in crystal structure
-    std::vector<double> x_f; // fractional coord
-    std::vector<double> y_f; // fractional coord
-    std::vector<double> z_f; // fractional coord
-    std::vector<double> mass;
+    std::string name;  // name of structure
+    double a, b, c;  // unit cell dimensions
+    double alpha, beta, gamma;  // unit cell angles
+    int noatoms;  // number of atoms
+
+    // fractional coords of atoms in crystal structure
+    std::vector<double> x_f;
+    std::vector<double> y_f;
+    std::vector<double> z_f;
+
+    // corresponding identities (elements)
     std::vector<std::string> identity; // identity
+
+    // corresponding atomic masses
+    std::vector<double> mass;  
+
+    // corresponding charges
+    std::vector<double> charge;  
+    double net_charge;
 
     double density; // crystal density
     double volume_unitcell; // volume of unit cell (A^3)

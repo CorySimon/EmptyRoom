@@ -19,6 +19,7 @@
 #include<vector>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
 namespace boo = boost::numeric::ublas;
 #include "adsorbate.h"
 #include "datatypes.h"
@@ -26,9 +27,8 @@ namespace boo = boost::numeric::ublas;
 #include "Forcefield.h"
 #include <sys/time.h>
 #include "readsettings.h"
-#include "Framework.h"
 #include "Forcefield.h"
-#include "write_settings_to_outputfile.h"
+#include "write_settings_to_outputfile_gcmc.h"
 #include <sys/time.h>
 //#include "pocketblocking.h"
 #define min_r .0000000000000001  // don't want to divide by zero...
