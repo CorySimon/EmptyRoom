@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
         if (! parameters.Coulomb_grid_flag)
             sprintf(gridfilename, "data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
         else
-            sprintf(gridfilename, "data/grids/Coulomb/%s_%s.txt", framework.name.c_str(), parameters.adsorbatebead.c_str());
+            sprintf(gridfilename, "data/grids/Coulomb/%s.txt", framework.name.c_str());
         gridfile = fopen(gridfilename, "w");
         fprintf(gridfile, "%d %d %d  = (parameters.N_x,parameters.N_y,parameters.N_z)"
                                            "grid points (grid is in fractional coords)." 
@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
         if (! parameters.Coulomb_grid_flag)
             sprintf(gridfilename, "data/grids/vdW/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
         else
-            sprintf(gridfilename, "data/grids/Coulomb/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
+            sprintf(gridfilename, "data/grids/Coulomb/%s.cube", framework.name.c_str());
 
         gridfile = fopen(gridfilename, "w");
         
