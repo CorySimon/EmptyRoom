@@ -5,20 +5,22 @@ LIBS = -lm
 
 all: gcmc
 
-gcmc: Framework.o Forcefield.o pocketblocking.o gcmc.o 
-	$(CC) -o $@ Framework.o Forcefield.o pocketblocking.o gcmc.o 
+ # gcmc: Framework.o Forcefield.o pocketblocking.o gcmc.o 
+ # 	$(CC) -o $@ Framework.o Forcefield.o pocketblocking.o gcmc.o 
+gcmc: Framework.o Forcefield.o gcmc.o 
+	$(CC) -o $@ Framework.o Forcefield.o gcmc.o 
 
 pocketblocking.o: pocketblocking.cc
-	$(CC) -c pocketblocking.cc
+	$(CC) -c pocketblocking.cc -std=c++11
 
 gcmc.o: gcmc.cc
 	$(CC) -c gcmc.cc -std=c++11
 
 Framework.o: Framework.cc
-	$(CC) -c Framework.cc
+	$(CC) -c Framework.cc -std=c++11
 
 Forcefield.o: Forcefield.cc
-	$(CC) -c Forcefield.cc
+	$(CC) -c Forcefield.cc -std=c++11
 
 clean: 
 	rm *.o 

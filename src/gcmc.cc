@@ -67,7 +67,10 @@ void InitializeGCMCStats(GCMCStats & stats) {
     stats.N_move_trials = 0; stats.N_insertion_trials = 0; stats.N_deletion_trials = 0; stats.N_ID_swap_trials = 0; stats.N_regrow_trials = 0;
     stats.N_insertions = 0; stats.N_deletions = 0; stats.N_moves = 0; stats.N_ID_swaps = 0; stats.N_regrows = 0;
     stats.N_samples = 0;
-    stats.guest_guest_energy_avg = 0.0; stats.framework_guest_energy_avg= 0.0;
+    stats.E_gg_vdW_avg = 0.0;
+    stats.E_gg_Coulomb_avg = 0.0;
+    stats.E_gf_vdW_avg = 0.0;
+    stats.E_gf_Coulomb_avg = 0.0;
     stats.N_g_avg[0] = 0.0; stats.N_g_avg[1] = 0.0;
     stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
 }
@@ -90,7 +93,7 @@ double WrapToInterval(double x, double z) {
     return x - z * floor(x / z);
 }
 
-double GuestGuestEnergy(std::vector<Adsorbate> & adsorbates,
+double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
                         int adsorbateid) { 
     // Compute potential energy of adsorbate molecule adsorbateid in the vector adsorbates
     // Energy contribution from other guests.
@@ -139,11 +142,22 @@ double GuestGuestEnergy(std::vector<Adsorbate> & adsorbates,
     return E_gg;
 }
 
-double TotalGuestGuestEnergy(std::vector<Adsorbate> & adsorbates) {
+double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
+                        int adsorbateid) { 
+    // EWald summation for Coulomb energy of guest ID=adsorbateid with other guests
+    return 0.0;
+}
+
+double TotalGuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates) { 
+    // EWald summation for Coulomb energy of guest ID=adsorbateid with other guests
+    return 0.0;
+}
+
+double TotalGuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates) {
     // Calculate total system guest-guest energy
     double E_gg = 0.0;
     for (int i = 0; i < adsorbates.size(); i ++) 
-        E_gg += GuestGuestEnergy(adsorbates, i);
+        E_gg += GuestGuestvdWEnergy(adsorbates, i);
     return E_gg / 2.0; // 2 is for double counting
 }
 
@@ -161,8 +175,10 @@ int GetEnergyGridIndex(int i, int j, int k, GridInfo grid_info) {
 double BeadFrameworkEnergy(double x_f_, double y_f_, double z_f_,
             GridInfo grid_info,
             double * energy_grid) {
+    // linearly interpolate grid to get energy at a fractional position
     // reflect fractional coords in [0,1] for grid
     // TODO: put wrap function here?
+    // works for both vdW and Coulomb grids since they are stored in the same format
     assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
     assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
     //  FORMAT OF GRID: energy_grid[k+j*N_z+i*N_y*N_z]
@@ -192,7 +208,7 @@ double BeadFrameworkEnergy(double x_f_, double y_f_, double z_f_,
     return c0 * (1 - z_d) + c1 * z_d;
 }
 
-double GuestFrameworkEnergy(Adsorbate adsorbate,
+double GuestFrameworkvdWEnergy(Adsorbate adsorbate,
                             GridInfo grid_info,
                             double ** energy_grids) {
     // Compute energy of adsorbate with framework
@@ -207,44 +223,45 @@ double GuestFrameworkEnergy(Adsorbate adsorbate,
     return E_gf;
 }
 
-double TotalGuestFrameworkEnergy(std::vector<Adsorbate> & adsorbates,
-                                 GridInfo grid_info,
-                                 double ** energy_grids) {
-    // Calculate total system framework-guest energy
+double GuestFrameworkCoulombEnergy(Adsorbate adsorbate,
+                            GridInfo Coulomb_grid_info,
+                            double * Coulomb_grid) {
+    // Compute Coulomb energy of adsorbate with framework
     double E_gf = 0.0;
-    for (int i = 0; i < adsorbates.size(); i ++)
-        E_gf += GuestFrameworkEnergy(adsorbates[i], grid_info, energy_grids);
+    for (int b = 0; b < adsorbate.nbeads; b++) {  
+        // for each bead that makes up this guest molecule
+        E_gf += adsorbate.beadcharges[b] * BeadFrameworkEnergy(
+                                    WrapToInterval(adsorbate.bead_xyz_f(0, b), 1.0),
+                                    WrapToInterval(adsorbate.bead_xyz_f(1, b), 1.0),
+                                    WrapToInterval(adsorbate.bead_xyz_f(2, b), 1.0),
+                                    Coulomb_grid_info, Coulomb_grid);
+    }
     return E_gf;
 }
 
-////
-//// Write guest positions to file
-////
-//void WriteGuestPostionsToFile(FILE * positionfile, 
-//                              int N_g_total,
-//                              GuestMoleculeInfo * guestmoleculeinfo,
-//                              GuestMolecule * guestmolecules,
-//                              GuestBead * guestbeads,
-//                              GCMCParameters parameters) {
-//    // for each guest molecule...
-//    for (int i = 0; i < N_g_total ; i++) {
-//        // for each bead in this guest molecule...
-//        for (int b = 0; b < guestmoleculeinfo[guestmolecules[i].type].nbeads; b++) {
-//            int beadid = guestmolecules[i].beadID[b];  // ID of this bead
-//            int beadtype = guestbeads[beadid].type;
-//            std::string beadlabel = (guestmoleculeinfo[guestmolecules[i].type].beadtypes[0] == beadtype) ? 
-//                                    guestmoleculeinfo[guestmolecules[i].type].beadlabels[0] : 
-//                                    guestmoleculeinfo[guestmolecules[i].type].beadlabels[1]; 
-//            fprintf(positionfile, "%s %f %f %f\n", 
-//                    beadlabel.c_str(),
-//                    guestbeads[beadid].x, guestbeads[beadid].y, guestbeads[beadid].z);
-//        }
-//    }
-//}
-//
+double TotalGuestFrameworkvdWEnergy(std::vector<Adsorbate> & adsorbates,
+                                 GridInfo grid_info,
+                                 double ** energy_grids) {
+    // Calculate total system framework-guest vdw energy
+    double E_gf = 0.0;
+    for (int i = 0; i < adsorbates.size(); i ++)
+        E_gf += GuestFrameworkvdWEnergy(adsorbates[i], grid_info, energy_grids);
+    return E_gf;
+}
+
+double TotalGuestFrameworkCoulombEnergy(std::vector<Adsorbate> & adsorbates,
+                                 GridInfo Coulomb_grid_info,
+                                 double * Coulomb_grid) {
+    // Calculate total system framework-guest vdw energy
+    double E_gf = 0.0;
+    for (int i = 0; i < adsorbates.size(); i ++)
+        E_gf += GuestFrameworkCoulombEnergy(adsorbates[i], Coulomb_grid_info, Coulomb_grid);
+    return E_gf;
+}
 
 int main(int argc, char *argv[])
 {
+    printf("Self interaction in coulomb...\n");
     if (! ((argc == 4) | (argc == 6) | (argc == 8))) {
         printf("Run as ./gcmc $structure $adsorbate0 $fugacity0(Pa) $adsorbate1 $fugactiy1(Pa) $adsorbate2 $fugactiy2(Pa)\nAdsorbate1,2 stuff is optional\n");
         exit(EXIT_FAILURE);
@@ -314,12 +331,20 @@ int main(int argc, char *argv[])
     for (std::map<std::string, int>::iterator it=beadlabel_to_int.begin(); it!=beadlabel_to_int.end(); ++it)
         int_to_beadlabel[it->second] = it->first;
     adsorbatetemplates = GetAdsorbateTemplates(adsorbate, beadlabel_to_int, false);
+    // are there charged adsorbates in the system?
+    parameters.charged_adsorbate_flag = false;
+    for (int i = 0; i < parameters.numadsorbates; i++) {
+        if (adsorbatetemplates[i].charged == true)
+            parameters.charged_adsorbate_flag = true;
+    }
     int nuniquebeads = beadlabel_to_int.size();
     if (parameters.verbose) {
         printf("Adsorbate templates read. %d unique beads.\n", nuniquebeads);
         for (int i = 0; i < adsorbate.size(); i++) {
             adsorbatetemplates[i].print_info();
         }
+        if (parameters.charged_adsorbate_flag)
+            printf("Adsorbate is charged; Coulomb forces considered.\n");
     }
     
     //
@@ -352,7 +377,7 @@ int main(int argc, char *argv[])
         if (parameters.verbose) 
             printf("Importing energy grid %d\n", n_c);
         char gridfilename[512];
-        sprintf(gridfilename, "data/grids/%s_%s_%s.txt", framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
+        sprintf(gridfilename, "data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
 
         std::ifstream gridfile(gridfilename); // input file stream
         if (gridfile.fail()) {
@@ -428,6 +453,55 @@ int main(int argc, char *argv[])
 //            }
 //        }
     }
+
+    //
+    // Import Coulomb grid
+    //
+    // Are there charged adsorbates?
+    double * Coulomb_grid;
+    GridInfo Coulomb_grid_info; // for storing grid info
+    if (parameters.charged_adsorbate_flag) {
+        if (parameters.verbose) 
+            printf("Importing Coulomb grid\n");
+        char Coulombgridfilename[512];
+        sprintf(Coulombgridfilename, "data/grids/Coulomb/%s.txt", framework.name.c_str());
+
+        std::ifstream gridfile(Coulombgridfilename); // input file stream
+        if (gridfile.fail()) {
+            printf("Coulomb grid file %s could not be loaded...\n", Coulombgridfilename);
+            exit(EXIT_FAILURE);
+        }
+        std::string line;
+        getline(gridfile, line);
+        std::istringstream this_line(line);
+        this_line >> Coulomb_grid_info.N_x >> Coulomb_grid_info.N_y >> Coulomb_grid_info.N_z;
+        Coulomb_grid_info.numtotalpts = Coulomb_grid_info.N_x * Coulomb_grid_info.N_y * Coulomb_grid_info.N_z;
+       
+        Coulomb_grid = (double *) calloc(Coulomb_grid_info.numtotalpts, sizeof(double));
+
+        int i = 0; int j = 0;
+        while(getline(gridfile,line)) {
+            std::istringstream this_line(line);
+            for (int k = 0; k < Coulomb_grid_info.N_z; k ++) {  // each line is a pencil of z's
+                int index_here = k + j * Coulomb_grid_info.N_z + i * Coulomb_grid_info.N_y * Coulomb_grid_info.N_z;
+                this_line >> Coulomb_grid[index_here];
+            }
+            j += 1; // each line is a pencil of z's for a particular y... so update y index
+            if (j == Coulomb_grid_info.N_y) {
+                i += 1; // at the end of the z-y sheet, we go to a new x.
+                j = 0; // j goes back to zero
+            }
+        }
+        assert(i == Coulomb_grid_info.N_x); // assert that we are at the end of the file
+        assert(j == 0);
+        gridfile.close();
+        // grid spacing in fractional coordinates  (how it was done in writegrid)
+        Coulomb_grid_info.dx_f = 1.0/(Coulomb_grid_info.N_x - 1); // grid spacings
+        Coulomb_grid_info.dy_f = 1.0/(Coulomb_grid_info.N_y - 1);
+        Coulomb_grid_info.dz_f = 1.0/(Coulomb_grid_info.N_z - 1);
+        if (parameters.verbose) 
+            printf("Coulomb grid imported successfully\n");
+    }
     
     //
     // Initialize stats and guests array (includes both components via "type" attribute)
@@ -478,6 +552,7 @@ int main(int argc, char *argv[])
         framework,
         forcefield,
         grid_info,
+        Coulomb_grid_info,
         uc_reps,
         t_matrix,
         inv_t_matrix,
@@ -508,8 +583,12 @@ int main(int argc, char *argv[])
     double start_of_sim_time = ReadTimer();
     if (parameters.verbose) 
         printf("Starting simulation...\n");
-    double E_gg_this_cycle = 0.0; 
-    double E_gf_this_cycle = 0.0; // assumes that we start with zero particles! (way it is set now...)
+    // keep track of total system energy
+    // assumes that we start with zero particles! (way it is set now...)
+    double E_gg_vdW_this_cycle = 0.0; 
+    double E_gf_vdW_this_cycle = 0.0; 
+    double E_gg_Coulomb_this_cycle = 0.0; 
+    double E_gf_Coulomb_this_cycle = 0.0; 
     int cycle_counter = 0;
 
     for (int cycle = 0; cycle < parameters.numtrials; cycle++) {
@@ -550,9 +629,15 @@ int main(int argc, char *argv[])
                 adsorbates.push_back(inserted_adsorbate);
 
                 // compute energy of this inserted particle
-                double E_gf = GuestFrameworkEnergy(inserted_adsorbate, grid_info, energy_grids);
-                double E_gg = GuestGuestEnergy(adsorbates, adsorbates.size() - 1);
-                double E_insertion = E_gf + E_gg;
+                double E_gf_vdW = GuestFrameworkvdWEnergy(inserted_adsorbate, grid_info, energy_grids);
+                double E_gg_vdW = GuestGuestvdWEnergy(adsorbates, adsorbates.size() - 1);
+                double E_gf_Coulomb = 0.0;
+                double E_gg_Coulomb = 0.0;
+                if (parameters.charged_adsorbate_flag) {
+                    E_gf_Coulomb = GuestFrameworkCoulombEnergy(inserted_adsorbate, Coulomb_grid_info, Coulomb_grid);
+                    E_gg_Coulomb = GuestGuestCoulombEnergy(adsorbates, adsorbates.size() - 1);
+                }
+                double E_insertion = E_gf_vdW + E_gg_vdW + E_gf_Coulomb + E_gg_Coulomb;
                 
                 // for debug mode, print stuff off
                 if (parameters.debugmode) {
@@ -564,8 +649,10 @@ int main(int argc, char *argv[])
                         boo::matrix_column<boo::matrix<double> > x_bead2(inserted_adsorbate.bead_xyz, 1);
                         printf("\tBond length between bead 0 and 1 = %f\n", boo::norm_2(x_bead1 - x_bead2));
                     }
-                    std::cout << "\tE_gg = " << E_gg << std::endl;
-                    std::cout << "\tE_gf = " << E_gf << std::endl;
+                    std::cout << "\tE_gf (vdW) = " << E_gf_vdW << std::endl;
+                    std::cout << "\tE_gf (Coulomb) = " << E_gf_Coulomb << std::endl;
+                    std::cout << "\tE_gg (vdW) = " << E_gg_vdW << std::endl;
+                    std::cout << "\tE_gg (Coulomb) = " << E_gg_Coulomb << std::endl;
                 }
                 
                 // accept, loosely, if energetically favorable
@@ -582,8 +669,10 @@ int main(int argc, char *argv[])
                     N_g[which_type] += 1;
                     
                     // update system energies
-                    E_gg_this_cycle += E_gg; 
-                    E_gf_this_cycle += E_gf;
+                    E_gg_vdW_this_cycle += E_gg_vdW; 
+                    E_gf_vdW_this_cycle += E_gf_vdW;
+                    E_gg_Coulomb_this_cycle += E_gg_Coulomb; 
+                    E_gf_Coulomb_this_cycle += E_gf_Coulomb;
                 }
                 else {
                     // remove adsorbate from vector
@@ -623,9 +712,15 @@ int main(int argc, char *argv[])
                         printf("\tProposal to delete guest molecule %d\n", idx_delete);
                     
                     // compute energy of this guest that we propose to delete
-                    double E_gf = GuestFrameworkEnergy(adsorbates[idx_delete], grid_info, energy_grids);
-                    double E_gg = GuestGuestEnergy(adsorbates, idx_delete);
-                    double E_deletion = E_gf + E_gg;
+                    double E_gf_vdW = GuestFrameworkvdWEnergy(adsorbates[idx_delete], grid_info, energy_grids);
+                    double E_gg_vdW = GuestGuestvdWEnergy(adsorbates, idx_delete);
+                    double E_gf_Coulomb = 0.0;
+                    double E_gg_Coulomb = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb = GuestFrameworkCoulombEnergy(adsorbates[idx_delete], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb = GuestGuestCoulombEnergy(adsorbates, idx_delete);
+                    }
+                    double E_deletion = E_gf_vdW + E_gg_vdW + E_gf_Coulomb + E_gg_Coulomb;
                     
                     // accept deletion if, loosely, energetically favorable
                     double acceptance_del = (N_g[which_type] * 1.3806488e7 * parameters.T) / (fugacity[which_type] * volume) * exp(E_deletion / parameters.T);
@@ -639,8 +734,10 @@ int main(int argc, char *argv[])
                         adsorbates.erase(adsorbates.begin() + idx_delete);
 
                         // update system energies
-                        E_gg_this_cycle -= E_gg; 
-                        E_gf_this_cycle -= E_gf;
+                        E_gg_vdW_this_cycle -= E_gg_vdW; 
+                        E_gf_vdW_this_cycle -= E_gf_vdW;
+                        E_gg_Coulomb_this_cycle -= E_gg_Coulomb; 
+                        E_gf_Coulomb_this_cycle -= E_gf_Coulomb;
                         
                         if (parameters.debugmode) {
                             std::cout << "Deletion accepted with probability " << acceptance_del << std::endl;
@@ -680,9 +777,15 @@ int main(int argc, char *argv[])
                         printf("\tProposal to move guest molecule %d\n", idx_move);
                     
                     // compute energy of this guest that we propose to move
-                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_move], grid_info, energy_grids);
-                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_move);
-                    double E_old = E_gf_old + E_gg_old;
+                    double E_gf_vdW_old = GuestFrameworkvdWEnergy(adsorbates[idx_move], grid_info, energy_grids);
+                    double E_gg_vdW_old = GuestGuestvdWEnergy(adsorbates, idx_move);
+                    double E_gf_Coulomb_old = 0.0;
+                    double E_gg_Coulomb_old = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_old = GuestFrameworkCoulombEnergy(adsorbates[idx_move], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_old = GuestGuestCoulombEnergy(adsorbates, idx_move);
+                    }
+                    double E_old = E_gf_vdW_old + E_gg_vdW_old + E_gf_Coulomb_old + E_gg_Coulomb_old;
 
                     // store this adsorbate's attributes before it was moved
                     // This way, if move is rejected, we can just replace it
@@ -697,15 +800,23 @@ int main(int argc, char *argv[])
                     adsorbates[idx_move].translate_by_Cartesian_vector(dx, t_matrix, inv_t_matrix, uc_reps);
                     
                     // compute energy of this guest that we propose to move in its new position
-                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_move], grid_info, energy_grids);
-                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_move);
-                    double E_new = E_gf_new + E_gg_new;
+                    double E_gf_vdW_new = GuestFrameworkvdWEnergy(adsorbates[idx_move], grid_info, energy_grids);
+                    double E_gg_vdW_new = GuestGuestvdWEnergy(adsorbates, idx_move);
+                    double E_gf_Coulomb_new = 0.0;
+                    double E_gg_Coulomb_new = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_new = GuestFrameworkCoulombEnergy(adsorbates[idx_move], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_new = GuestGuestCoulombEnergy(adsorbates, idx_move);
+                    }
+                    double E_new = E_gf_vdW_new + E_gg_vdW_new + E_gf_Coulomb_new + E_gg_Coulomb_new;
 
                     // accept if, loosely, energeticall favorable
                     if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
                         stats.N_moves += 1; 
-                        E_gg_this_cycle += E_gg_new - E_gg_old; 
-                        E_gf_this_cycle += E_gf_new - E_gf_old;
+                        E_gg_vdW_this_cycle += E_gg_vdW_new - E_gg_vdW_old; 
+                        E_gf_vdW_this_cycle += E_gf_vdW_new - E_gf_vdW_old;
+                        E_gg_Coulomb_this_cycle += E_gg_Coulomb_new - E_gg_Coulomb_old; 
+                        E_gf_Coulomb_this_cycle += E_gf_Coulomb_new - E_gf_Coulomb_old;
                         if (E_new > 1e6)
                             std::cout << "Move accepted with huge energy" << std::endl;
                         // already overwrote coords with new coords, no need to update coords in this case
@@ -744,9 +855,15 @@ int main(int argc, char *argv[])
                     }
                     
                     // compute energy of this guest that we propose to change ID of
-                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
-                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_id_change);
-                    double E_old = E_gf_old + E_gg_old;
+                    double E_gf_vdW_old = GuestFrameworkvdWEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
+                    double E_gg_vdW_old = GuestGuestvdWEnergy(adsorbates, idx_id_change);
+                    double E_gf_Coulomb_old = 0.0;
+                    double E_gg_Coulomb_old = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_old = GuestFrameworkCoulombEnergy(adsorbates[idx_id_change], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_old = GuestGuestCoulombEnergy(adsorbates, idx_id_change);
+                    }
+                    double E_old = E_gf_vdW_old + E_gg_vdW_old + E_gf_Coulomb_old + E_gg_Coulomb_old;
 
                     // randomly pick type to change this adsorbate to. 
                     int change_to_type = which_type;
@@ -778,9 +895,15 @@ int main(int argc, char *argv[])
                     adsorbates[idx_id_change] = new_adsorbate;
                     
                     // compute energy of this new guest of different identity
-                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
-                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_id_change);
-                    double E_new = E_gf_new + E_gg_new;
+                    double E_gf_vdW_new = GuestFrameworkvdWEnergy(adsorbates[idx_id_change], grid_info, energy_grids);
+                    double E_gg_vdW_new = GuestGuestvdWEnergy(adsorbates, idx_id_change);
+                    double E_gf_Coulomb_new = 0.0;
+                    double E_gg_Coulomb_new = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_new = GuestFrameworkCoulombEnergy(adsorbates[idx_id_change], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_new = GuestGuestCoulombEnergy(adsorbates, idx_id_change);
+                    }
+                    double E_new = E_gf_vdW_new + E_gg_vdW_new + E_gf_Coulomb_new + E_gg_Coulomb_new;
 
                     // Accept move if, loosely, particle identity change was energetically favorable
                     double prob_acceptance_ID_swap = exp(-(E_new - E_old) / parameters.T) * fugacity[change_to_type] / fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[change_to_type]) + 1.0);
@@ -788,8 +911,10 @@ int main(int argc, char *argv[])
                         stats.N_ID_swaps += 1;
                         
                         // keep track of energies
-                        E_gg_this_cycle += E_gg_new - E_gg_old;
-                        E_gf_this_cycle += E_gf_new - E_gf_old;
+                        E_gg_vdW_this_cycle += E_gg_vdW_new - E_gg_vdW_old;
+                        E_gf_vdW_this_cycle += E_gf_vdW_new - E_gf_vdW_old;
+                        E_gg_Coulomb_this_cycle += E_gg_Coulomb_new - E_gg_Coulomb_old;
+                        E_gf_Coulomb_this_cycle += E_gf_Coulomb_new - E_gf_Coulomb_old;
                         
                         // update particle numbers
                         N_g[which_type] -= 1; // one less of which type
@@ -836,9 +961,15 @@ int main(int argc, char *argv[])
                         printf("\tProposal to regrow guest molecule %d\n", idx_regrow);
 
                     // compute energy of this guest that we propose to regrow
-                    double E_gf_old = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
-                    double E_gg_old = GuestGuestEnergy(adsorbates, idx_regrow);
-                    double E_old = E_gf_old + E_gg_old;
+                    double E_gf_vdW_old = GuestFrameworkvdWEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
+                    double E_gg_vdW_old = GuestGuestvdWEnergy(adsorbates, idx_regrow);
+                    double E_gf_Coulomb_old = 0.0;
+                    double E_gg_Coulomb_old = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_old = GuestFrameworkCoulombEnergy(adsorbates[idx_regrow], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_old = GuestGuestCoulombEnergy(adsorbates, idx_regrow);
+                    }
+                    double E_old = E_gf_vdW_old + E_gg_vdW_old + E_gf_Coulomb_old + E_gg_Coulomb_old;
                     
                     // store this adsorbate's attributes before it was moved
                     // This way, if move is rejected, we can just replace it
@@ -866,14 +997,23 @@ int main(int argc, char *argv[])
                     adsorbates[idx_regrow] = regrown_adsorbate;
                     
                     // compute energy at this new position
-                    double E_gf_new = GuestFrameworkEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
-                    double E_gg_new = GuestGuestEnergy(adsorbates, idx_regrow);
-                    double E_new = E_gf_new + E_gg_new;
+                    double E_gf_vdW_new = GuestFrameworkvdWEnergy(adsorbates[idx_regrow], grid_info, energy_grids);
+                    double E_gg_vdW_new = GuestGuestvdWEnergy(adsorbates, idx_regrow);
+                    double E_gf_Coulomb_new = 0.0;
+                    double E_gg_Coulomb_new = 0.0;
+                    if (parameters.charged_adsorbate_flag) {
+                        E_gf_Coulomb_new = GuestFrameworkCoulombEnergy(adsorbates[idx_regrow], Coulomb_grid_info, Coulomb_grid);
+                        E_gg_Coulomb_new = GuestGuestCoulombEnergy(adsorbates, idx_regrow);
+                    }
+                    double E_new = E_gf_vdW_new + E_gg_vdW_new + E_gf_Coulomb_new + E_gg_Coulomb_new;
 
                     // accept if, loosely, energeticall favorable
                     if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
                         stats.N_regrows += 1; 
-                        E_gg_this_cycle += E_gg_new - E_gg_old; E_gf_this_cycle += E_gf_new - E_gf_old;
+                        E_gg_vdW_this_cycle += E_gg_vdW_new - E_gg_vdW_old; 
+                        E_gf_vdW_this_cycle += E_gf_vdW_new - E_gf_vdW_old;
+                        E_gg_Coulomb_this_cycle += E_gg_Coulomb_new - E_gg_Coulomb_old; 
+                        E_gf_Coulomb_this_cycle += E_gf_Coulomb_new - E_gf_Coulomb_old;
                         if (E_new > 1e6)
                             std::cout << "Move accepted with huge energy" << std::endl;
                         // already overwrote adsorbate, so no need to do anything
@@ -894,8 +1034,11 @@ int main(int argc, char *argv[])
                     stats.N_g_avg[a_i] += N_g[a_i];
                     stats.N_g2_avg[a_i] += N_g[a_i] * N_g[a_i];
                 }
-                stats.guest_guest_energy_avg += E_gg_this_cycle; // divide by N_samples later
-                stats.framework_guest_energy_avg += E_gf_this_cycle; // divide by N_samples later
+                // divide by N samples later
+                stats.E_gg_vdW_avg += E_gg_vdW_this_cycle;
+                stats.E_gg_Coulomb_avg += E_gg_Coulomb_this_cycle;
+                stats.E_gf_vdW_avg += E_gf_vdW_this_cycle;
+                stats.E_gf_Coulomb_avg += E_gf_Coulomb_this_cycle;
             }
 
             //
@@ -995,8 +1138,10 @@ int main(int argc, char *argv[])
     }  // end outer cycle loop
     
     // take avg
-    stats.guest_guest_energy_avg = 1.0 * stats.guest_guest_energy_avg / stats.N_samples;
-    stats.framework_guest_energy_avg = 1.0 * stats.framework_guest_energy_avg / stats.N_samples;
+    stats.E_gg_vdW_avg = stats.E_gg_vdW_avg / stats.N_samples;
+    stats.E_gg_Coulomb_avg = stats.E_gg_Coulomb_avg / stats.N_samples;
+    stats.E_gf_vdW_avg = stats.E_gf_vdW_avg / stats.N_samples;
+    stats.E_gf_Coulomb_avg = stats.E_gf_Coulomb_avg / stats.N_samples;
 
     double sim_time = ReadTimer() - start_of_sim_time;
     
@@ -1006,13 +1151,27 @@ int main(int argc, char *argv[])
     //
     fprintf(outputfile, "\nEnergy checks\n");
 
-    double E_gg_system = TotalGuestGuestEnergy(adsorbates);
-    double E_gf_system = TotalGuestFrameworkEnergy(adsorbates, grid_info, energy_grids);
+    double E_gg_vdW_system = TotalGuestGuestvdWEnergy(adsorbates);
+    double E_gf_vdW_system = TotalGuestFrameworkvdWEnergy(adsorbates, grid_info, energy_grids);
+    double E_gg_Coulomb_system = 0.0;
+    double E_gf_Coulomb_system = 0.0;
+    if (parameters.charged_adsorbate_flag) {
+        E_gg_Coulomb_system = TotalGuestGuestCoulombEnergy(adsorbates);
+        E_gf_Coulomb_system = TotalGuestFrameworkCoulombEnergy(adsorbates, Coulomb_grid_info, Coulomb_grid);
+    }
     
-    fprintf(outputfile, "    E_gg total calc'ed at end: %f K\n", E_gg_system);
-    fprintf(outputfile, "    E_gg from adding dE's throughout simulation: %f K\n", E_gg_this_cycle);
-    fprintf(outputfile, "    E_gf total calc'ed at end: %f K\n", E_gf_system);
-    fprintf(outputfile, "    E_gf from adding dE's throughout simulation: %f K\n", E_gf_this_cycle);
+    fprintf(outputfile, "    E_gg total calc'ed at end:\n"
+                        "       vdW: %f K\n"
+                        "       Coulomb: %f K\n", E_gg_vdW_system, E_gg_Coulomb_system);
+    fprintf(outputfile, "    E_gg from adding dE's throughout simulation:\n"
+                        "       vdW: %f K\n"
+                        "       Coulomb: %f K\n", E_gg_vdW_this_cycle, E_gg_Coulomb_this_cycle);
+    fprintf(outputfile, "    E_gf total calc'ed at end:\n"
+                        "       vdW: %f K\n"
+                        "       Coulomb: %f K\n", E_gf_vdW_system, E_gf_Coulomb_system);
+    fprintf(outputfile, "    E_gf from adding dE's throughout simulation:\n"
+                        "       vdW: %f K\n"
+                        "       Coulomb: %f K\n", E_gf_vdW_this_cycle, E_gf_Coulomb_this_cycle);
     
     //   
     // write stats to outputfile
@@ -1043,8 +1202,10 @@ int main(int argc, char *argv[])
         fprintf(outputfile, "        <N_g> (%s) = %f moles/m3\n", adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7);
         fprintf(outputfile, "        <N_g> (%s) = %f moles/kg framework\n", adsorbate[n_c].c_str(), stats.N_g_avg[n_c] / volume / 6.022e-7 / framework.density);
     }
-    fprintf(outputfile, "\n     <E_gg> = %f kJ/mol = %f K\n", stats.guest_guest_energy_avg * 8.314 / 1000.0, stats.guest_guest_energy_avg);
-    fprintf(outputfile, "     <E_gf> = %f kJ/mol = %f K", stats.framework_guest_energy_avg * 8.314 / 1000.0, stats.framework_guest_energy_avg);
+    fprintf(outputfile, "\n     <E_gg> vdW = %f kJ/mol = %f K\n", stats.E_gg_vdW_avg * 8.314 / 1000.0, stats.E_gg_vdW_avg);
+    fprintf(outputfile, "     <E_gf> vdW = %f kJ/mol = %f K\n", stats.E_gf_vdW_avg * 8.314 / 1000.0, stats.E_gf_vdW_avg);
+    fprintf(outputfile, "     <E_gg> Coulomb = %f kJ/mol = %f K\n", stats.E_gg_Coulomb_avg * 8.314 / 1000.0, stats.E_gg_Coulomb_avg);
+    fprintf(outputfile, "     <E_gf> Coulomb = %f kJ/mol = %f K\n", stats.E_gf_Coulomb_avg * 8.314 / 1000.0, stats.E_gf_Coulomb_avg);
 
     fclose(outputfile); 
 }

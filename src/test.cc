@@ -10,12 +10,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Framework.h"
-#include "Forcefield.h"
 
-int main(void) {
+int main() {
 
-    Framework framework("IRMOF-1_clean", true);
-    Forcefield forcefield("UFF", true);
+    Framework f("LIDZOP", true);
 
     return 0;
 }

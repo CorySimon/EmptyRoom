@@ -84,6 +84,8 @@ void ReadSimulationInputFile(GridParameters & parameters) {
             simfile >> parameters.forcefieldname;
         if (word=="GridOutputFormat")
             simfile >> parameters.gridoutputformat;
+        if (word=="EWaldPrecision")
+            simfile >> parameters.EWald_precision;
         if (word=="FeynmanHibbs")
             simfile >> parameters.feynmanhibbs;
         if (word=="verbosemode")
@@ -241,18 +243,20 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
     }
     if ((parameters.p_identity_change + parameters.p_move + parameters.p_exchange + parameters.p_regrow) != 1.0) {
         printf("MC trial probabilities do not add to 1.0...\n");
+        printf("\tp(ID change) = %f\n", parameters.p_identity_change);
+        printf("\tp(move) = %f\n", parameters.p_move);
+        printf("\tp(exchange) = %f\n", parameters.p_exchange);
+        printf("\tp(regrow) = %f\n", parameters.p_regrow);
         exit(EXIT_FAILURE);
     }
 }
 
-TripleInt ReadUnitCellReplicationFile(std::string frameworkname, std::string once_or_twice) {
+std::vector<int> ReadUnitCellReplicationFile(std::string frameworkname, std::string once_or_twice) {
     // read unit cell replication factors from unit cell rep file
     // once_or_twice indicates cell needs to be twice the size of rc or once
-    TripleInt uc_dims;
+    std::vector<int> uc_dims(3);
+    uc_dims[0] = -1; uc_dims[1] = -1; uc_dims[2] = -1;
 
-    uc_dims.arg1 = -1; // initialize
-    uc_dims.arg2 = -1;
-    uc_dims.arg3 = -1;
     std::string uc_filename = "data/uc_replications/" + frameworkname + "_" + once_or_twice + ".uc";
     std::ifstream ucfile(uc_filename.c_str());
     if (ucfile.fail()) {
@@ -260,106 +264,50 @@ TripleInt ReadUnitCellReplicationFile(std::string frameworkname, std::string onc
         exit(EXIT_FAILURE);
     }
 
-    if ( !(ucfile >> uc_dims.arg1)) {
+    if ( !(ucfile >> uc_dims[0])) {
         printf("Problem reading UC file");
         exit(EXIT_FAILURE);
     }
-    if ( !(ucfile >> uc_dims.arg2)) {
+    if ( !(ucfile >> uc_dims[1])) {
         printf("Problem reading UC file");
         exit(EXIT_FAILURE);
     }
-    if ( !(ucfile >> uc_dims.arg3)) {
+    if ( !(ucfile >> uc_dims[2])) {
         printf("Problem reading UC file");
         exit(EXIT_FAILURE);
     }
 
-    if (uc_dims.arg1 == -1) printf("Error, problem reading unit cell replication file");
+    if ((uc_dims[0] == -1) | (uc_dims[1] == -1) | (uc_dims[2] == -1))
+        printf("Error, problem reading unit cell replication file");
     
     return uc_dims;
 }
 
-PairDouble GrabGuestForceFieldParams(Forcefield forcefield, std::string adsorbate) {
+std::vector<double> GrabGuestForceFieldParams(Forcefield forcefield, std::string adsorbate) {
     // searches through Forcefield object to get LJ params for adsorbate
-    PairDouble eps_sig; // [epsilon, sigma] vector
+    std::vector<double> eps_sig(2); // [epsilon, sigma] vector
+
+    if (adsorbate == "Coulomb") {
+        eps_sig[0] = 0.0;
+        eps_sig[1] = 0.0;
+        return eps_sig;
+    }
+
     bool found_adsorbate = false;
-    for (int i =0; i < forcefield.numinteractions; i++) {
+    for (int i = 0; i < forcefield.numinteractions; i++) {
         if (forcefield.identity[i] == adsorbate) {
             found_adsorbate = true;
-            eps_sig.arg1 = forcefield.epsilon[i];
-            eps_sig.arg2 = forcefield.sigma[i];
+            eps_sig[0] = forcefield.epsilon[i];
+            eps_sig[1] = forcefield.sigma[i];
             break;
         }
     }
 
     if (! found_adsorbate) {
-        printf("Could not find adsorbate %s in forcefield file %s", adsorbate.c_str(), forcefield.name.c_str());
+        printf("Could not find adsorbate %s in forcefield file %s\n", adsorbate.c_str(), forcefield.name.c_str());
         exit(EXIT_FAILURE);
     }
     return eps_sig;
-}
-
-void GetGuestMoleculeInfo(GuestMoleculeInfo * guestmoleculeinfo, GCMCParameters & parameters) {
-    // load guest molecule information
-    parameters.nuniquebeads = 0;  // number of unique beads in the guest molecules
-    for (int a = 0; a < parameters.numadsorbates; a++) {
-        guestmoleculeinfo[a].type = parameters.adsorbate[a]; 
-
-        char adsorbateinfofilename[1024];
-        sprintf(adsorbateinfofilename, "data/adsorbates/%s.info", parameters.adsorbate[a].c_str());
-        
-        std::ifstream adsorbateinfofile(adsorbateinfofilename);
-        if (adsorbateinfofile.fail()) {
-            printf("adsorbate info file not found: data/adsorbates/%s.info\n", parameters.adsorbate[a].c_str());
-            exit(EXIT_FAILURE);
-        }
-        std::string line;
-        
-        // get number of beads
-        getline(adsorbateinfofile, line);
-        std::istringstream linestream(line);
-        linestream >> guestmoleculeinfo[a].nbeads;
-        
-        // get type of beads
-        for (int i = 0; i < guestmoleculeinfo[a].nbeads; i++) {
-            // bead label
-            getline(adsorbateinfofile, line);
-            linestream.str(line); linestream.clear();
-            std::string beadlabel;
-            linestream >> guestmoleculeinfo[a].beadlabels[i];
-            
-            // see if this bead is recorded in uniquebeadlist
-            bool beadalreadyhere = false;
-            for (int k = 0; k < parameters.nuniquebeads; k++) {
-                if (guestmoleculeinfo[a].beadlabels[i] == parameters.uniquebeadlist[k])
-                    beadalreadyhere = true;
-            }
-            if (beadalreadyhere == false) {
-                parameters.uniquebeadlist[parameters.nuniquebeads] = guestmoleculeinfo[a].beadlabels[i];
-                parameters.nuniquebeads += 1;
-            }
-        }
-
-        // get bond length
-        if (guestmoleculeinfo[a].nbeads > 1) {
-            getline(adsorbateinfofile, line);
-            linestream.str(line); linestream.clear();
-            linestream >> guestmoleculeinfo[a].bondlength;
-        }
-        else
-            guestmoleculeinfo[a].bondlength = -1.0;
-
-        adsorbateinfofile.close();
-    }
-
-    // assign integer IDs according to position in parameters.uniquebeadlist
-    for (int a = 0; a < parameters.numadsorbates; a++) {  // for each guest molecule
-        for (int i = 0; i < guestmoleculeinfo[a].nbeads; i++) {  // for each bead in this guest molecule
-            for (int u = 0; u < parameters.nuniquebeads; u++) {  // search through unique bead list
-                if (guestmoleculeinfo[a].beadlabels[i] == parameters.uniquebeadlist[u])
-                    guestmoleculeinfo[a].beadtypes[i] = u;
-            }
-        }
-    }
 }
 
 #endif /* READSIMULATIONmassesfile_H_ */

@@ -10,12 +10,19 @@
 #ifndef LOAD_FAST_PARTICLE_F_ARRAY_H_
 #define LOAD_FAST_PARTICLE_F_ARRAY_H_
 
-void LoadFastFrameworkParticleArray(FrameworkParticle * framework_atoms, Framework framework, Forcefield forcefield, double epsilon_guest, double sigma_guest) {
+void LoadFastFrameworkParticleArray(FrameworkParticle * framework_atoms, 
+                                    Framework framework, 
+                                    Forcefield forcefield, 
+                                    double epsilon_guest, 
+                                    double sigma_guest) {
+    // load framework_atoms pointer array with framework info
     for (int i = 0; i < framework.noatoms; i++) {
         // keep framework_atoms on device as fractional coordinates [0,1]^3 (makes implementing periodic BC easier)
         framework_atoms[i].x_f = framework.x_f[i];
         framework_atoms[i].y_f = framework.y_f[i];
         framework_atoms[i].z_f = framework.z_f[i];
+
+        framework_atoms[i].charge = framework.charge[i];
 
         bool found_frameworkatom = false;
         double epsilon; double sigma; // for storing epsilon and sigma for this framework atom

@@ -11,7 +11,7 @@
 #include<vector>
 #include<random>
 #include <boost/numeric/ublas/matrix.hpp>
-#include <boost/geometry/geometry.hpp>
+// #include <boost/geometry/geometry.hpp>
 namespace boo = boost::numeric::ublas;
 
 
@@ -35,11 +35,14 @@ class Adsorbate {
         boo::matrix<double> bead_xyz; // Cartesian coordinates of beads stored column-wise
         boo::matrix<double> bead_xyz_f; // Fractional coordinates of beads stored column-wise
         std::vector<int> beadtypes;  // Integer ID of bead type
+        std::vector<double> beadcharges;  // Charge on bead
+        bool charged;  // does the adsorbate include a charge?
 
         Adsorbate(int nbeads_)
             :bead_xyz(3, nbeads_),  // preallocate size as 3 by nbeads
              bead_xyz_f(3, nbeads_),  // preallocate size as 3 by nbeads
-             beadtypes(nbeads_)
+             beadtypes(nbeads_),
+             beadcharges(nbeads_)
         {
             // Constructor 
             nbeads = nbeads_;
@@ -90,7 +93,7 @@ class Adsorbate {
             printf("\nAdsorbate type %d.\n", type);
             printf("\tNumber of beads = %d\n", nbeads);
             for (int b = 0; b < nbeads; b++) {
-               printf("\tBead %d. Type %d. x=(%f, %f, %f)\n", b, beadtypes[b], bead_xyz(0, b), bead_xyz(1, b), bead_xyz(2, b));
+               printf("\tBead %d. Type %d. x=(%f, %f, %f), charge = %f\n", b, beadtypes[b], bead_xyz(0, b), bead_xyz(1, b), bead_xyz(2, b), beadcharges[b]);
             }
             printf("\n");
         }
@@ -273,12 +276,12 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
         for (int b = 0; b < nbeads; b++) {
             std::getline(adsorbatefile, line);
             linestream.str(line); linestream.clear();
+            std::cout << line << std::endl;
             
             adsorbate.beadtypes[b] = beadlabel_to_int[beadnames[b]];
 
-            linestream >> adsorbate.bead_xyz(0, b); 
-            linestream >> adsorbate.bead_xyz(1, b);
-            linestream >> adsorbate.bead_xyz(2, b); 
+            linestream >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b) >> adsorbate.beadcharges[b];
+            printf("bead xyz = (%f, %f, %f), charge = %f\n", adsorbate.bead_xyz(0, b), adsorbate.bead_xyz(1, b), adsorbate.bead_xyz(2, b), adsorbate.beadcharges[b]);
         }
 
         // ensure first bead is at origin
@@ -287,11 +290,28 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
             adsorbate.bead_xyz(1, b) -= adsorbate.bead_xyz(1, 0);
             adsorbate.bead_xyz(2, b) -= adsorbate.bead_xyz(2, 0);
         }
+        
+        // if any beads are charged, declare chargedtag true
+        double total_charge = 0.0;
+        adsorbate.charged = false;  // predeclare as false
+        for (int b = 0; b < nbeads; b++) {
+            total_charge += adsorbate.beadcharges[b];
+            if (adsorbate.beadcharges[b] != 0.0)
+                adsorbate.charged = true;
+        }
+
+        // check for charge neutrality
+        if (total_charge != 0.0) {
+            printf("Net charge of adsorbate %d is %f != 0.0\n", adsorbate.type, total_charge);
+            for (int b = 0; b < nbeads; b++)
+                printf("\tBead %d charge: %f\n", b, adsorbate.beadcharges[b]);
+        }
 
         adsorbatefile.close();
 
         adsorbatetemplates.push_back(adsorbate);
     }
+
     return adsorbatetemplates;
 }
 
