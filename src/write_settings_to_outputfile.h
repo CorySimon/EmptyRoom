@@ -11,6 +11,7 @@
 
 void WriteSettingsToOutputfile(FILE * outputfile,
         GridParameters parameters,
+        EWaldParameters ew_params,
         Framework framework,
         Forcefield forcefield,
         FrameworkParticle * framework_atoms) {
@@ -94,8 +95,20 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     //
     // Coulomb interactions
     //
-    if (parameters.Coulomb_grid_flag) 
+    if (parameters.Coulomb_grid_flag) {
         fprintf(outputfile, "\nELECTROSTATIC POTENTIAL ENERGY GRID.\n");
+        fprintf(outputfile, "   alpha = %f\n", ew_params.alpha); 
+        fprintf(outputfile, "   short-range cutoff = %f\n", sqrt(ew_params.cutoff_squared)); 
+        fprintf(outputfile, "   k-vector reps = (%d, %d, %d)\n", ew_params.kx, ew_params.ky, ew_params.kz);
+        fprintf(outputfile, "   Reciprocal lattice vectors:\n"
+                            "     x: (%f, %f, %f)\n"
+                            "     y: (%f, %f, %f)\n"
+                            "     z: (%f, %f, %f)\n",
+                            ew_params.b1[0], ew_params.b1[1], ew_params.b1[2],
+                            ew_params.b2[0], ew_params.b2[1], ew_params.b2[2],
+                            ew_params.b3[0], ew_params.b3[1], ew_params.b3[2]);
+    }
+
 
     //
     // Grid info

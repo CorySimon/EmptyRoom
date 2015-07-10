@@ -28,16 +28,19 @@ namespace boo = boost::numeric::ublas;
 #include <sys/time.h>
 #include "readsettings.h"
 #include "Forcefield.h"
+#include "GetEwaldParams.h"
 #include "write_settings_to_outputfile_gcmc.h"
 #include <sys/time.h>
 //#include "pocketblocking.h"
-#define min_r .0000000000000001  // don't want to divide by zero...
+#define min_r .0000001  // don't want to divide by zero...
 
 /* 
  * Global Variables for ease. BE CAREFUL!
 */
 boo::matrix<double> t_matrix(3, 3);  // fractional to Cartesian coords
 boo::matrix<double> inv_t_matrix(3, 3);  // Cartesian to fractional
+    
+GCMCParameters parameters;
 
 // storing force field parameters
 boo::matrix<double> epsilon_matrix;
@@ -52,13 +55,13 @@ std::map<std::string, int> beadlabel_to_int;
 std::map<int, std::string> int_to_beadlabel;
 std::vector<double> adsorbateMW;
 
-// templates of adsorbate molecules
-std::vector<Adsorbate> adsorbatetemplates;
-// vector of adsorbate molecules for simulation
-std::vector<Adsorbate> adsorbates;
+// Ewald summation params
+EWaldParameters ew_params;
 
 // replication factor for unit cell
 std::vector<int> uc_reps(3);
+
+bool OVERLAP; // check for overlap; reject moves with particle overlap
 
 double r_cutoff_squared;  // (A), Lennard Jones cutoff radius, squared
 
@@ -130,8 +133,10 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
                 
                 // Compute LJ potential
                 double r2 = inner_prod(dx, dx);
-                if (r2 < min_r) 
+                if (r2 < min_r) {
+                    OVERLAP = true;
                     return 100000000000000.0; // overwrite if too small
+                }
                 if (r2 < r_cutoff_squared) {
                     double sigma_over_r_sixth = pow(sigma_squared_matrix(this_bead_type, other_bead_type) / r2, 3.0); 
                     E_gg += 4.0 * epsilon_matrix(this_bead_type, other_bead_type) * sigma_over_r_sixth * (sigma_over_r_sixth - 1.0);
@@ -144,8 +149,124 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
 
 double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                         int adsorbateid) { 
-    // EWald summation for Coulomb energy of guest ID=adsorbateid with other guests
-    return 0.0;
+    /* EWald summation for Coulomb energy of guest ID=adsorbateid with other guests */
+
+    //
+    // Short-range
+    //
+    double E_sr = 0.0; // short range
+    // for each bead in this adsorbate molecule
+    for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
+        // get fractional coord of this bead in this adsorbate
+        boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
+        // for each other guest molecule 
+        for (int k = 0 ; k < adsorbates.size(); k++) {
+            // do not include self interation!
+            if (k == adsorbateid) 
+                continue; 
+            // get energy contribution from each bead in other adsorbate molecule
+            for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
+                boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
+
+                // distance in fractional coords
+                boo::vector<double> dx_f = xf_this_bead - xf_other_bead;
+
+                // take nearest image
+                for (int i_ = 0; i_ < 3; i_++) {
+                    dx_f[i_] = dx_f[i_] - uc_reps[i_] * round(dx_f[i_] / uc_reps[i_]);
+                    // assert within bounds #todo remove later
+                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
+                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
+                }
+
+                // distance in Cartesian
+                boo::vector<double> dx = prod(t_matrix, dx_f);
+                
+                double r2 = inner_prod(dx, dx);
+                // check for overlap
+                if (r2 < min_r) {
+                    OVERLAP = true;
+                    return 10000000000000000.0;
+                }
+                // compute short-range Coulomb energy
+                if (r2 < ew_params.cutoff_squared) {
+                    double r = sqrt(r2);
+                    E_sr += adsorbates[k].beadcharges[b_other] * adsorbates[adsorbateid].beadcharges[b_this] / 
+                                        r * erfc(r * sqrt(ew_params.alpha)) / (4 * M_PI * ew_params.eps0);
+                }
+            }  // end loop over BEADS of other guest molecule
+        }  // end loop over other guest molecules
+    }  // end loop over beads of THIS guest molecule
+
+    //
+    // Long-range (sum ovr k vectors in Fourier space)
+    //
+    double E_lr = 0.0;
+    for (int kx = -ew_params.kx; kx <= ew_params.kx; kx ++) {
+        for (int ky = -ew_params.ky; ky <= ew_params.ky; ky ++) {
+            for (int kz = -ew_params.kz; kz <= ew_params.kz; kz ++) {
+                // continue if zero vector
+                if ((kx == 0) & (ky == 0) & (kz == 0))
+                    continue;
+
+                // reciprocal lattice vector k = (k0, k1, k2) we are looking at
+                // kx: amnt of lattice vector x
+                double k0 = kx * ew_params.b1[0] + ky * ew_params.b2[0] + kz * ew_params.b3[0]; 
+                double k1 = kx * ew_params.b1[1] + ky * ew_params.b2[1] + kz * ew_params.b3[1]; 
+                double k2 = kx * ew_params.b1[2] + ky * ew_params.b2[2] + kz * ew_params.b3[2]; 
+                double mag_k_squared = k0*k0 + k1*k1 + k2*k2;
+
+                //
+                // Compute Structural factor S(k), which has real and imaginary part
+                //
+                double S_real_part = 0.0;
+                double S_im_part = 0.0;
+                for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
+                    // get fractional coord of this bead in this adsorbate
+                    boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
+                    boo::vector<double> x_this_bead = prod(t_matrix, xf_this_bead);
+                    
+                    for (int k = 0 ; k < adsorbates.size(); k++) {
+                        // do not include self interation!
+                        if (k == adsorbateid) 
+                            continue; 
+                        // get energy contribution from each bead in other adsorbate molecule
+                        for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
+                            // get position of this bead
+                            boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
+                            boo::vector<double> x_other_bead = prod(t_matrix, xf_other_bead);
+
+                            // S(k) structure factor (2 \pi taken care of in reciprocal lattice vectors)
+                            S_real_part += adsorbates[k].beadcharges[b_other] *
+                                cos(k0 * x_other_bead[0] + k1 * x_other_bead[1] + k2 * x_other_bead[2]);
+                            S_im_part += adsorbates[k].beadcharges[b_other] *
+                                sin(k0 * x_other_bead[0] + k1 * x_other_bead[1] + k2 * x_other_bead[2]);
+                        }  // end loop over BEADS of other guest molecule
+                    }  // end loop over other guest molecules
+                    
+                    // for this bead
+                    double S_real_part_this = adsorbates[adsorbateid].beadcharges[b_this] * 
+                            cos(k0 * x_this_bead[0] + k1 * x_this_bead[1] + k2 * x_this_bead[2]);
+                    double S_im_part_this = adsorbates[adsorbateid].beadcharges[b_this] * 
+                            sin(k0 * x_this_bead[0] + k1 * x_this_bead[1] + k2 * x_this_bead[2]);
+                    
+                    double mag_S_squared = S_real_part * S_real_part_this + S_im_part * S_im_part_this;
+                    
+                    // add contribution to long-range Coulomb potential
+                    E_lr += exp(- mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared * mag_S_squared;
+                }  // end loop over beads of THIS guest molecule
+            } // end kz loop
+        } // end ky loop
+    } // end kx loop
+    E_lr = E_lr / parameters.volume_unitcell / ew_params.eps0;
+
+    //
+    // Self-interaction energy
+    //
+    double E_self = 0.0;
+    for (int i = 0; i < adsorbates[adsorbateid].nbeads; i++)
+        E_self += sqrt(ew_params.alpha / M_PI) * adsorbates[adsorbateid].beadcharges[i] * adsorbates[adsorbateid].beadcharges[i];
+    return E_sr + E_lr - E_self;
 }
 
 double TotalGuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates) { 
@@ -267,7 +388,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     
-    GCMCParameters parameters;
     // read arguments to get adsorbate and fugacity
     parameters.frameworkname = argv[1];
 
@@ -318,9 +438,13 @@ int main(int argc, char *argv[])
             inv_t_matrix(i, j) = framework.inv_t_matrix[i][j];
         }
     }
+    parameters.volume_unitcell = framework.volume_unitcell;
     parameters.N_framework_atoms = framework.noatoms;
     if (parameters.verbose) 
         printf("Constructed Framework object\n");
+
+    // get Ewald params (reciprocal lattice vecs)
+    ew_params = GetEwaldParams(framework, parameters.verbose);
 
     //
     // Read adsorbate info
@@ -330,7 +454,11 @@ int main(int argc, char *argv[])
     // create reverse map
     for (std::map<std::string, int>::iterator it=beadlabel_to_int.begin(); it!=beadlabel_to_int.end(); ++it)
         int_to_beadlabel[it->second] = it->first;
-    adsorbatetemplates = GetAdsorbateTemplates(adsorbate, beadlabel_to_int, false);
+    std::vector<Adsorbate> adsorbatetemplates = GetAdsorbateTemplates(adsorbate, beadlabel_to_int, false);
+    
+    // vector of adsorbate molecules for simulation
+    std::vector<Adsorbate> adsorbates;
+
     // are there charged adsorbates in the system?
     parameters.charged_adsorbate_flag = false;
     for (int i = 0; i < parameters.numadsorbates; i++) {
@@ -595,6 +723,7 @@ int main(int argc, char *argv[])
         // each cycle corresponds to a number of Markov chain moves defined by ninnercycles
         int ninnercycles = adsorbates.size() > 20 ? adsorbates.size() : 20; // proportional to number of guests
         for (int inner_cycle = 0; inner_cycle < ninnercycles; inner_cycle ++) {
+            OVERLAP = false;  // set overlap to false
             cycle_counter += 1;
             
             // generate random numbers
@@ -659,7 +788,7 @@ int main(int argc, char *argv[])
                 double acceptance_insertion = fugacity[which_type] * volume / ((N_g[which_type] + 1) * 1.3806488e7 * parameters.T) * exp(-E_insertion / parameters.T);
                 if (parameters.debugmode) 
                     std::cout << "\tAcceptance prob = " << acceptance_insertion << std::endl;
-                if (rand_for_acceptance < acceptance_insertion) {  
+                if ((rand_for_acceptance < acceptance_insertion) & (OVERLAP == false)) {  
                     if (parameters.debugmode) 
                         printf("\tInsertion ACCEPTED.\n");
 
@@ -811,7 +940,7 @@ int main(int argc, char *argv[])
                     double E_new = E_gf_vdW_new + E_gg_vdW_new + E_gf_Coulomb_new + E_gg_Coulomb_new;
 
                     // accept if, loosely, energeticall favorable
-                    if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
+                    if ((rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) & (OVERLAP == false)){
                         stats.N_moves += 1; 
                         E_gg_vdW_this_cycle += E_gg_vdW_new - E_gg_vdW_old; 
                         E_gf_vdW_this_cycle += E_gf_vdW_new - E_gf_vdW_old;
@@ -907,7 +1036,7 @@ int main(int argc, char *argv[])
 
                     // Accept move if, loosely, particle identity change was energetically favorable
                     double prob_acceptance_ID_swap = exp(-(E_new - E_old) / parameters.T) * fugacity[change_to_type] / fugacity[which_type] * static_cast<double>(N_g[which_type]) / (static_cast<double>( N_g[change_to_type]) + 1.0);
-                    if (rand_for_acceptance < prob_acceptance_ID_swap) { 
+                    if ((rand_for_acceptance < prob_acceptance_ID_swap) & (OVERLAP == false)) { 
                         stats.N_ID_swaps += 1;
                         
                         // keep track of energies
@@ -1008,7 +1137,7 @@ int main(int argc, char *argv[])
                     double E_new = E_gf_vdW_new + E_gg_vdW_new + E_gf_Coulomb_new + E_gg_Coulomb_new;
 
                     // accept if, loosely, energeticall favorable
-                    if (rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) {
+                    if ((rand_for_acceptance < exp(-(E_new - E_old) / parameters.T)) & (OVERLAP == false)) {
                         stats.N_regrows += 1; 
                         E_gg_vdW_this_cycle += E_gg_vdW_new - E_gg_vdW_old; 
                         E_gf_vdW_this_cycle += E_gf_vdW_new - E_gf_vdW_old;
@@ -1112,27 +1241,6 @@ int main(int argc, char *argv[])
                     
             }  // end make assertions
             
-//            //
-//            // Write adsorbate positions to file (optional)
-//            //
-//            if (parameters.writeadsorbatepositions) {
-//                if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.writepositionfrequency == 0)) {
-//                    N_snapshots ++;
-//                    WriteGuestPostionsToFile(adsorbatepositionfile, 
-//                              N_g_total,
-//                              guestmoleculeinfo,
-//                              guestmolecules,
-//                              guestbeads,
-//                              parameters); 
-//                    if (N_snapshots > parameters.num_snapshots) {
-//                        printf("Reached %d snapshots, exiting.\n", N_snapshots);
-//                        fprintf(outputfile, "\nWrote %d adsorbate snapshot positions in xyz file every %d MC moves.\n", 
-//                                        N_snapshots, parameters.writepositionfrequency);
-//                        std::exit(EXIT_SUCCESS);
-//                    }
-//                }
-//            }
-//
         }  // end inner cycle loop
 
     }  // end outer cycle loop

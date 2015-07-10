@@ -15,19 +15,18 @@
 #include<cstdlib> // for "exit"
 #include<sstream> // string stream
 #include<vector>
-#include "adsorbate.h"
+//#include "adsorbate.h"
+#include "GetEwaldParams.h"
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/vector.hpp>
 namespace boo = boost::numeric::ublas;
 
-struct bs {
-    int a;
-    std::map<int, std::string> gah;
-};
-
 int main()
-{   
-   Adsorbate xe(1);
+{
+    std::string name = "IRMOF-1_clean";
+    Framework framework(name);
+    EWaldParameters ew = GetEwaldParams(framework, true);
+//   Adsorbate xe(1);
 //   xe.print_info();
 //   xe.nbeads = 1;
 //   xe.type = 0;
@@ -63,16 +62,16 @@ int main()
 //   for (int i=0;i<3;i++)
 //       printf("z(%d)=%f\n", i, z[i]);
 //
-   std::vector<std::string> adsorbatelist(1);
-   adsorbatelist[0] = "Xe";
-//   adsorbatelist[1] = "CH2CH2";
-
-   std::map<std::string, int> uniquebeads = GetBeadMap(adsorbatelist, true);
-
-   std::vector<Adsorbate> adsorbatetemplates = GetAdsorbateTemplates(adsorbatelist, uniquebeads, true);
-   for (int i = 0; i < adsorbatelist.size(); i++) {
-       adsorbatetemplates[i].print_info();
-   }
+//   std::vector<std::string> adsorbatelist(1);
+//   adsorbatelist[0] = "Xe";
+////   adsorbatelist[1] = "CH2CH2";
+//
+//   std::map<std::string, int> uniquebeads = GetBeadMap(adsorbatelist, true);
+//
+//   std::vector<Adsorbate> adsorbatetemplates = GetAdsorbateTemplates(adsorbatelist, uniquebeads, true);
+//   for (int i = 0; i < adsorbatelist.size(); i++) {
+//       adsorbatetemplates[i].print_info();
+//   }
 //  
 ////  unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 ////    std::mt19937 generator(seed);

@@ -115,6 +115,7 @@ __global__ void ComputeCoulombGridSheet(
      double * zy_energies,
      FrameworkParticle * framework_atoms,
      GridParameters parameters,
+     EWaldParameters ew_params,
      double * b1, double * b2, double * b3,
      double x_f) {
     // compute energy on a sheet of grid points.
@@ -136,13 +137,6 @@ __global__ void ComputeCoulombGridSheet(
     // set up Carteisan coordinates for this grid point
     double x = 0.0, y = 0.0, z = 0.0; // Cartesian coords of grid point
     DeviceFractionalToCartesian(parameters.t_matrix, x_f, y_f, z_f, x, y, z);
-    
-    double ewald_sr_cutoff_squared = 12.5 * 12.5;  // short range cutoff for EWald summations
-    double alpha = 0.35;  // in Gaussian used for splitting short and long range interactions (see Berend's book)
-    //  vacuum permittivity  eps0 = 8.854187817e-12 C^2/(J-m)
-    //  1 m = 1e10 A, 1 e = 1.602176e-19 C, kb = 1.3806488e-23 J/K
-    //  eps0 = 8.854187817e-12 C^2/(J-m) [1 m / 1e10 A] [1 e / 1.602176e-19 C]^2 [kb = 1.3806488e-23 J/K]
-    double eps0 = 4.7622424954949676e-7;  // \epsilon_0 vacuum permittivity units: electron charge^2 /(A - K)
 
     //
     // Short-range Coulomb energy
@@ -172,9 +166,9 @@ __global__ void ComputeCoulombGridSheet(
                     double r2 = dx*dx + dy*dy + dz*dz; //r squared
                     r2 = (r2 > min_r * min_r) ? r2 : min_r * min_r; // min radius to prevent blow-up
 
-                    if (r2 < ewald_sr_cutoff_squared) {
+                    if (r2 < ew_params.cutoff_squared) {
                         double r = sqrt(r2);
-                        energy_Coulomb_sr += framework_atoms[framework_atom_index].charge / r * erfc(r * sqrt(alpha)) / (4 * M_PI * eps0);
+                        energy_Coulomb_sr += framework_atoms[framework_atom_index].charge / r * erfc(r * sqrt(ew_params.alpha)) / (4 * M_PI * ew_params.eps0);
                     }
                 } // end loop over framework atoms
             } // end loop over c-direction unit cell replication
@@ -185,11 +179,10 @@ __global__ void ComputeCoulombGridSheet(
      // Long-range Coulomb energy
      //
      double energy_Coulomb_lr = 0.0;  // lr = long range
-     int k_reps = 8;  // number of replications of k-vectors (reciprocal lattice edge pts)
      // sum ovr k vectors
-     for (int kx = -k_reps; kx <= k_reps; kx ++) {
-         for (int ky = -k_reps; ky <= k_reps; ky ++) {
-             for (int kz = -k_reps; kz <= k_reps; kz ++) {
+     for (int kx = -ew_params.kx; kx <= ew_params.kx; kx ++) {
+         for (int ky = -ew_params.ky; ky <= ew_params.ky; ky ++) {
+             for (int kz = -ew_params.kz; kz <= ew_params.kz; kz ++) {
                 // continue if zero vector
                 if ((kx == 0) & (ky == 0) & (kz == 0))
                     continue;
@@ -228,11 +221,11 @@ __global__ void ComputeCoulombGridSheet(
                 double mag_S_squared = S_real_part * S_real_part_this + S_im_part * S_im_part_this;
 
                 // add contribution to long-range Coulomb potential
-                energy_Coulomb_lr += exp(- mag_k_squared/ 4.0 / alpha) / mag_k_squared * mag_S_squared;
+                energy_Coulomb_lr += exp(- mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared * mag_S_squared;
             } // end kz loop
         } // end ky loop
     } // end kx loop
-    energy_Coulomb_lr = energy_Coulomb_lr / parameters.volume_unitcell / eps0;
+    energy_Coulomb_lr = energy_Coulomb_lr / parameters.volume_unitcell / ew_params.eps0;
 
     energy = energy_Coulomb_sr + energy_Coulomb_lr;
     // subtract off self-interaction energy later

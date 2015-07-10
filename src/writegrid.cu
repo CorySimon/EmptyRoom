@@ -13,6 +13,7 @@
 #include "write_settings_to_outputfile.h"
 #include "computegridsheet.h"
 #include "load_fast_particle_f_array.h"
+#include "GetEwaldParams.h"
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
@@ -132,6 +133,21 @@ int main(int argc, char *argv[]) {
     LoadFastFrameworkParticleArray(framework_atoms, framework, forcefield, parameters.epsilon_guest, parameters.sigma_guest);
     if (parameters.verbose) 
         printf("Initialized framework_atoms array in host\n");
+    
+    //
+    // Construct reciprocal lattice vectors on device for EWald summations
+    //
+    EWaldParameters ew_params = GetEwaldParams(framework, parameters.verbose);
+    thrust::device_vector<double> b1(3);
+    thrust::device_vector<double> b2(3);
+    thrust::device_vector<double> b3(3);
+    // transfer from Ewald params to here
+    for (int i = 0; i < 3; i++) {
+        b1[i] = ew_params.b1[i];
+        b2[i] = ew_params.b2[i];
+        b3[i] = ew_params.b3[i];
+    }
+        
 
     //
     // Construct grid
@@ -160,7 +176,7 @@ int main(int argc, char *argv[]) {
     char outputfilename[512];
     sprintf(outputfilename, "output_files/%s_%s_grid.out", parameters.frameworkname.c_str(), parameters.adsorbatebead.c_str());
     outputfile = fopen(outputfilename, "w");
-    WriteSettingsToOutputfile(outputfile, parameters, framework, forcefield, framework_atoms);
+    WriteSettingsToOutputfile(outputfile, parameters, ew_params, framework, forcefield, framework_atoms);
     if (parameters.verbose) 
         printf("Wrote info to outputfile\n");
 
@@ -204,57 +220,6 @@ int main(int argc, char *argv[]) {
     }
     if (parameters.verbose) printf("Initialized grid file\n");
     
-    //
-    // Construct reciprocal lattice vectors on device for EWald summations
-    //
-    // primitive lattice vectors a
-    thrust::host_vector<double> a1(3);
-    thrust::host_vector<double> a2(3);
-    thrust::host_vector<double> a3(3);
-    HostFractionalToCartesian(parameters.t_matrix,
-        1.0, 0.0, 0.0,
-        a1[0], a1[1], a1[2]);
-    HostFractionalToCartesian(parameters.t_matrix,
-        0.0, 1.0, 0.0,
-        a2[0], a2[1], a2[2]);
-    HostFractionalToCartesian(parameters.t_matrix,
-        0.0, 0.0, 1.0,
-        a3[0], a3[1], a3[2]);
-    
-    // reciprocal lattice vectors b
-    // multiply by 2\pi here so we dont need to do it in S(k)
-    thrust::device_vector<double> b1(3);
-    thrust::device_vector<double> b2(3);
-    thrust::device_vector<double> b3(3);
-    // cross products
-    thrust::host_vector<double> a2_a3 = cross_product(a2, a3);
-    thrust::host_vector<double> a3_a1 = cross_product(a3, a1);
-    thrust::host_vector<double> a1_a2 = cross_product(a1, a2);
-
-    for (int i = 0; i < 3; i++) {
-        // multiply by 2\pi here so we don't hv to do it later
-        b1[i] = 2.0 * M_PI * a2_a3[i] / dot_product(a1, a2_a3);
-        b2[i] = 2.0 * M_PI * a3_a1[i] / dot_product(a2, a3_a1);
-        b3[i] = 2.0 * M_PI * a1_a2[i] / dot_product(a3, a1_a2);
-    }
-
-    if (parameters.verbose) {
-        printf("Primitive lattice vectors:\n");
-        std::cout << "  a1 = (" << a1[0] << ", " << a1[1] << ", " << a1[2] << ")" << std::endl;
-        std::cout << "  a2 = (" << a2[0] << ", " << a2[1] << ", " << a2[2] << ")" << std::endl;
-        std::cout << "  a3 = (" << a3[0] << ", " << a3[1] << ", " << a3[2] << ")" << std::endl;
-        printf("Reciprocal lattice vectors:\n");
-        std::cout << "  b1 = (" << b1[0] << ", " << b1[1] << ", " << b1[2] << ")" << std::endl;
-        std::cout << "  b2 = (" << b2[0] << ", " << b2[1] << ", " << b2[2] << ")" << std::endl;
-        std::cout << "  b3 = (" << b3[0] << ", " << b3[1] << ", " << b3[2] << ")" << std::endl;
-        printf("Checking orthogonality (2 pi = %f).\n", 2.0 * M_PI);
-        std::cout << "  b1 * a1 = " << a1[0] * b1[0] + a1[1] * b1[1] + a1[2] * b1[2] << std::endl;
-        std::cout << "  b2 * a2 = " << a2[0] * b2[0] + a2[1] * b2[1] + a2[2] * b2[2] << std::endl;
-        std::cout << "  b3 * a3 = " << a3[0] * b3[0] + a3[1] * b3[1] + a3[2] * b3[2] << std::endl;
-        std::cout << "  b1 * a2 = " << a2[0] * b1[0] + a2[1] * b1[1] + a2[2] * b1[2] << std::endl;
-        std::cout << "  b1 * a3 = " << a3[0] * b1[0] + a3[1] * b1[1] + a3[2] * b1[2] << std::endl;
-    }
-        
     //
     // Parallelization strategy: pass sheets of the grid to the GPU at a time, sheets are defind by x = constant
     //
@@ -321,6 +286,7 @@ int main(int argc, char *argv[]) {
                     d_zy_energies,
                     d_framework_atoms,
                     parameters,
+                    ew_params,
                     thrust::raw_pointer_cast( &b1[0]),
                     thrust::raw_pointer_cast( &b2[0]),
                     thrust::raw_pointer_cast( &b3[0]),

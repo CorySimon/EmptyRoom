@@ -21,21 +21,6 @@ struct FrameworkParticle {
    // double reduced_mass; // for Feynman Hibbs
 };
 
-struct EWaldParameters {
-    // for Ewald summations
-    // Reciprocal space lattice vectors
-    double b1[3];
-    double b2[3];
-    double b3[3];
-
-    double eps0;  // vacuum permittivity (electron charge^2/(A-K))
-    double alpha;  // in Gaussian charge
-    double cutoff_squared;  // (A^2) short-range cutoff
-    
-    // how many k-vector replications for long-range interactions
-    int kx, ky, kz;
-};
-
 struct HenryParameters {
     // These are extracted from the simulation.input file
     int numinsertions;
@@ -114,7 +99,6 @@ struct GCMCParameters {
     bool verbose; // 0 or 1 for verbose printing
     bool debugmode; // print details of each move for debugging
     double r_cutoff_squared; // cutoff for LJ potential (A), squared
-    double volume_unitcell;  // volume of unit cell (A3)
     int feynmanhibbs;
     double T; // temperature (K)
     double delta; // spatial step in moves
