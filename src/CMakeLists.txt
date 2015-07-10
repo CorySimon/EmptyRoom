@@ -11,10 +11,15 @@ cuda_add_executable(writegrid writegrid.cu Framework.cc Forcefield.cc)
 project (henry)
 cuda_add_executable(henry henry.cu Framework.cc Forcefield.cc)
 
+# get GPU info
+project (get_gpu_info)
+cuda_add_executable(get_gpu_info get_gpu_info.cu)
+
 # gcmc project (requires C++11)
 project (gcmc)
 SET(CMAKE_CXX_FLAGS "-std=c++11")
-add_executable(gcmc gcmc.cc Framework.cc Forcefield.cc pocketblocking.cc)
+ # add_executable(gcmc gcmc.cc Framework.cc Forcefield.cc pocketblocking.cc)
+add_executable(gcmc gcmc.cc Framework.cc Forcefield.cc)
 
 # put binaries one directory up
 INSTALL(TARGETS writegrid henry gcmc DESTINATION ${writegrid_SOURCE_DIR}/..)
