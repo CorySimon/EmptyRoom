@@ -265,13 +265,17 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
     //
     double E_self = 0.0;
     for (int i = 0; i < adsorbates[adsorbateid].nbeads; i++)
-        E_self += sqrt(ew_params.alpha / M_PI) * adsorbates[adsorbateid].beadcharges[i] * adsorbates[adsorbateid].beadcharges[i];
+        E_self += sqrt(ew_params.alpha / M_PI) * adsorbates[adsorbateid].beadcharges[i] * adsorbates[adsorbateid].beadcharges[i] / 
+                                (4 * M_PI * ew_params.eps0);
     return E_sr + E_lr - E_self;
 }
 
 double TotalGuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates) { 
     // EWald summation for Coulomb energy of guest ID=adsorbateid with other guests
-    return 0.0;
+    double E_gg = 0.0;
+    for (int i = 0; i < adsorbates.size(); i ++) 
+        E_gg += GuestGuestCoulombEnergy(adsorbates, i);
+    return E_gg / 2.0; // 2 is for double counting
 }
 
 double TotalGuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates) {
@@ -505,7 +509,7 @@ int main(int argc, char *argv[])
         if (parameters.verbose) 
             printf("Importing energy grid %d\n", n_c);
         char gridfilename[512];
-        sprintf(gridfilename, "data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
+        sprintf(gridfilename, "/home/corymsimon/sim_data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
 
         std::ifstream gridfile(gridfilename); // input file stream
         if (gridfile.fail()) {

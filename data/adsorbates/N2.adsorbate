@@ -1,0 +1,7 @@
+3 beads
+N_in_N2 N_in_N2 dummy_charge = name of beads
+Bead_positions.csv:
+x y z charge
+0 0 0 -0.482
+1.10 0 0 -0.482
+0.55 0 0 0.964
