@@ -276,12 +276,10 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
         for (int b = 0; b < nbeads; b++) {
             std::getline(adsorbatefile, line);
             linestream.str(line); linestream.clear();
-            std::cout << line << std::endl;
             
             adsorbate.beadtypes[b] = beadlabel_to_int[beadnames[b]];
 
             linestream >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b) >> adsorbate.beadcharges[b];
-            printf("bead xyz = (%f, %f, %f), charge = %f\n", adsorbate.bead_xyz(0, b), adsorbate.bead_xyz(1, b), adsorbate.bead_xyz(2, b), adsorbate.beadcharges[b]);
         }
 
         // ensure first bead is at origin
