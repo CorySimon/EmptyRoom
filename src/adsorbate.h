@@ -294,7 +294,7 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
         adsorbate.charged = false;  // predeclare as false
         for (int b = 0; b < nbeads; b++) {
             total_charge += adsorbate.beadcharges[b];
-            if (adsorbate.beadcharges[b] != 0.0)
+            if ((adsorbate.beadcharges[b] > 0.0000001) | (adsorbate.beadcharges[b] < -.0000001))
                 adsorbate.charged = true;
         }
 

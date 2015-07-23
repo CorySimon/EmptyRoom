@@ -123,9 +123,9 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
                 // take nearest image
                 for (int i_ = 0; i_ < 3; i_++) {
                     dx_f[i_] = dx_f[i_] - uc_reps[i_] * round(dx_f[i_] / uc_reps[i_]);
-                    // assert within bounds #todo remove later
-                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
-                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
+//                    // assert within bounds #todo remove later
+//                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
+//                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
                 }
 
                 // distance in Cartesian
@@ -174,9 +174,9 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                 // take nearest image
                 for (int i_ = 0; i_ < 3; i_++) {
                     dx_f[i_] = dx_f[i_] - uc_reps[i_] * round(dx_f[i_] / uc_reps[i_]);
-                    // assert within bounds #todo remove later
-                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
-                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
+//                    // assert within bounds #todo remove later
+//                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
+//                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
                 }
 
                 // distance in Cartesian
@@ -216,11 +216,8 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                 double k2 = kx * ew_params.b1[2] + ky * ew_params.b2[2] + kz * ew_params.b3[2]; 
                 double mag_k_squared = k0*k0 + k1*k1 + k2*k2;
 
-                //
-                // Compute Structural factor S(k), which has real and imaginary part
-                //
-                double S_real_part = 0.0;
-                double S_im_part = 0.0;
+                // Loop over framework atoms
+                double E_lr_this_k = 0.0;
                 for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
                     // get fractional coord of this bead in this adsorbate
                     boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
@@ -236,38 +233,23 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                             boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
                             boo::vector<double> x_other_bead = prod(t_matrix, xf_other_bead);
 
-                            // S(k) structure factor (2 \pi taken care of in reciprocal lattice vectors)
-                            S_real_part += adsorbates[k].beadcharges[b_other] *
-                                cos(k0 * x_other_bead[0] + k1 * x_other_bead[1] + k2 * x_other_bead[2]);
-                            S_im_part += adsorbates[k].beadcharges[b_other] *
-                                sin(k0 * x_other_bead[0] + k1 * x_other_bead[1] + k2 * x_other_bead[2]);
+                            E_lr_this_k += adsorbates[k].beadcharges[b_other] * adsorbates[adsorbateid].beadcharges[b_this] *
+                                cos(k0 * (x_other_bead[0] - x_this_bead[0]) +
+                                    k1 * (x_other_bead[1] - x_this_bead[1]) + 
+                                    k2 * (x_other_bead[2] - x_this_bead[2]));
                         }  // end loop over BEADS of other guest molecule
                     }  // end loop over other guest molecules
                     
-                    // for this bead
-                    double S_real_part_this = adsorbates[adsorbateid].beadcharges[b_this] * 
-                            cos(k0 * x_this_bead[0] + k1 * x_this_bead[1] + k2 * x_this_bead[2]);
-                    double S_im_part_this = adsorbates[adsorbateid].beadcharges[b_this] * 
-                            sin(k0 * x_this_bead[0] + k1 * x_this_bead[1] + k2 * x_this_bead[2]);
-                    
-                    double mag_S_squared = S_real_part * S_real_part_this + S_im_part * S_im_part_this;
-                    
                     // add contribution to long-range Coulomb potential
-                    E_lr += exp(- mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared * mag_S_squared;
+                    E_lr_this_k = E_lr_this_k * exp(-mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared;
+                    E_lr += E_lr_this_k;
                 }  // end loop over beads of THIS guest molecule
             } // end kz loop
         } // end ky loop
     } // end kx loop
     E_lr = E_lr / parameters.volume_unitcell / ew_params.eps0;
 
-    //
-    // Self-interaction energy
-    //
-    double E_self = 0.0;
-    for (int i = 0; i < adsorbates[adsorbateid].nbeads; i++)
-        E_self += sqrt(ew_params.alpha / M_PI) * adsorbates[adsorbateid].beadcharges[i] * adsorbates[adsorbateid].beadcharges[i] / 
-                                (4 * M_PI * ew_params.eps0);
-    return E_sr + E_lr - E_self;
+    return E_sr + E_lr;
 }
 
 double TotalGuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates) { 
@@ -304,8 +286,8 @@ double BeadFrameworkEnergy(double x_f_, double y_f_, double z_f_,
     // reflect fractional coords in [0,1] for grid
     // TODO: put wrap function here?
     // works for both vdW and Coulomb grids since they are stored in the same format
-    assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
-    assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
+//    assert ((x_f_ > 0.0) & (y_f_ > 0.0) & (z_f_ > 0.0));
+//    assert ((x_f_ < 1.0) & (y_f_ < 1.0) & (z_f_ < 1.0));
     //  FORMAT OF GRID: energy_grid[k+j*N_z+i*N_y*N_z]
 
     // define indices of 8 grid points, lower ones are:
@@ -596,7 +578,7 @@ int main(int argc, char *argv[])
         if (parameters.verbose) 
             printf("Importing Coulomb grid\n");
         char Coulombgridfilename[512];
-        sprintf(Coulombgridfilename, "data/grids/Coulomb/%s.txt", framework.name.c_str());
+        sprintf(Coulombgridfilename, "/home/corymsimon/sim_data/grids/Coulomb/%s.txt", framework.name.c_str());
 
         std::ifstream gridfile(Coulombgridfilename); // input file stream
         if (gridfile.fail()) {
