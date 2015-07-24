@@ -91,6 +91,14 @@ double ReadTimer() {
     return (end.tv_sec - start.tv_sec) + 1.0e-6 * (end.tv_usec - start.tv_usec);
 }
 
+void write_adsorbate_positions_to_file(std::vector<Adsorbate> adsorbates, FILE * adsorbatepositionfile) {
+    for (int i = 0; i < adsorbates.size(); i++) {
+        for (int b = 0; b < adsorbates[i].nbeads; b++)
+            fprintf(adsorbatepositionfile, "%s %f %f %f\n", int_to_beadlabel[adsorbates[i].beadtypes[b]].c_str(), 
+                    adsorbates[i].bead_xyz(0, b), adsorbates[i].bead_xyz(1, b), adsorbates[i].bead_xyz(2, b));
+    }
+}
+
 double WrapToInterval(double x, double z) {
     // for applying periodic bc's
     return x - z * floor(x / z);
@@ -368,7 +376,6 @@ double TotalGuestFrameworkCoulombEnergy(std::vector<Adsorbate> & adsorbates,
 
 int main(int argc, char *argv[])
 {
-    printf("Self interaction in coulomb...\n");
     if (! ((argc == 4) | (argc == 6) | (argc == 8))) {
         printf("Run as ./gcmc $structure $adsorbate0 $fugacity0(Pa) $adsorbate1 $fugactiy1(Pa) $adsorbate2 $fugactiy2(Pa)\nAdsorbate1,2 stuff is optional\n");
         exit(EXIT_FAILURE);
@@ -686,8 +693,10 @@ int main(int argc, char *argv[])
     FILE * adsorbatepositionfile;
     int N_snapshots = 0;
     if (parameters.writeadsorbatepositions) {
+        printf("Writing adsorbate positions every %d snapshots after equilibration," 
+                "for a total of %d snapshots...\n", parameters.writepositionfrequency, parameters.num_snapshots);
         char positionfilename[1024];
-        sprintf(positionfilename, "outputfiles/adsorbate_positions_%s.xyz", framework.name.c_str());
+        sprintf(positionfilename, "output_files/adsorbate_positions_%s.xyz", framework.name.c_str());
         adsorbatepositionfile = fopen(positionfilename, "w");
     }
 
@@ -1157,6 +1166,18 @@ int main(int argc, char *argv[])
             }
 
             //
+            // Write adsorbate positions to file
+            //
+            if ((parameters.writeadsorbatepositions) & (cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.writepositionfrequency == 0)) {
+                write_adsorbate_positions_to_file(adsorbates, adsorbatepositionfile);
+                N_snapshots += 1;
+                if (N_snapshots >= parameters.num_snapshots) {
+                    printf("Wrote %d snapshots to file, exiting.\n", N_snapshots);
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            //
             // Print stuff if debug mode
             //
             if (parameters.debugmode) {
@@ -1302,4 +1323,5 @@ int main(int argc, char *argv[])
     fprintf(outputfile, "     <E_gf> Coulomb = %f kJ/mol = %f K\n", stats.E_gf_Coulomb_avg * 8.314 / 1000.0, stats.E_gf_Coulomb_avg);
 
     fclose(outputfile); 
+    fclose(adsorbatepositionfile); 
 }
