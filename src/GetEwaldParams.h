@@ -31,26 +31,26 @@ EWaldParameters GetEwaldParams(Framework framework, bool verbose=false) {
     params.eps0 = 4.7622424954949676e-7;  // \epsilon_0 vacuum permittivity units: electron charge^2 /(A - K)
     
     // in Gaussian used for splitting short and long range interactions (see Berend's book)
-    params.alpha = 0.35;  
+    params.alpha = 0.025;  
 
     // short-range cutoff
-    params.cutoff_squared = 12.5 * 12.5;
+    params.cutoff_squared = 21.0 * 21.0;
 
     // replications in fourier space for long-range interactions
-    params.kx = 8;
-    params.ky = 8;
-    params.kz = 8;
+    params.kx = 7;
+    params.ky = 7;
+    params.kz = 6;
 
     //
     // Get Reciprocal lattice vectors
     //
-    // Unit cell vectors
+    // Unit cell lattice vectors from transformation matrix
     std::vector< std::vector<double> > a;
     for (int i = 0; i < 3; i++) {
         std::vector<double> ai(3);
-        ai[0] = framework.t_matrix[i][0];
-        ai[1] = framework.t_matrix[i][1];
-        ai[2] = framework.t_matrix[i][2];
+        ai[0] = framework.t_matrix[0][i];
+        ai[1] = framework.t_matrix[1][i];
+        ai[2] = framework.t_matrix[2][i];
         a.push_back(ai);
     }
     
@@ -83,7 +83,8 @@ EWaldParameters GetEwaldParams(Framework framework, bool verbose=false) {
         printf("Checking orthogonality (2 pi = %f).\n\tA * B = \n", 2.0 * M_PI);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                printf("dot(a_%d, b_%d) = %f\n", i, j, inner_product(a[i], b[j]));
+                printf("dot(a_%d, b_%d) = %f\n", i, j,
+                        a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j]);
             }
         }
     }
