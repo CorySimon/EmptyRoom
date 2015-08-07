@@ -179,7 +179,7 @@ __global__ void ComputeCoulombGridSheet(
      // Long-range Coulomb energy
      //
      double energy_Coulomb_lr = 0.0;  // lr = long range
-     // sum ovr k vectors
+     // Loop over k-vectors
      for (int kx = -ew_params.kx; kx <= ew_params.kx; kx ++) {
          for (int ky = -ew_params.ky; ky <= ew_params.ky; ky ++) {
              for (int kz = -ew_params.kz; kz <= ew_params.kz; kz ++) {
@@ -193,12 +193,9 @@ __global__ void ComputeCoulombGridSheet(
                 double k1 = kx * b1[1] + ky * b2[1] + kz * b3[1]; 
                 double k2 = kx * b1[2] + ky * b2[2] + kz * b3[2]; 
                 double mag_k_squared = k0*k0 + k1*k1 + k2*k2;
-
-                //
-                // Compute Structural factor S(k), which has real and imaginary part
-                //
-                double S_real_part = 0.0;
-                double S_im_part = 0.0;
+                
+                // loop over framework atoms
+                double energy_Coulomb_lr_this_k = 0.0;
                 for (int framework_atom_index = 0; framework_atom_index < parameters.N_framework_atoms; framework_atom_index ++) {
                     // cartesian coords of framework atom
                     double x_framework = 0.0, y_framework = 0.0, z_framework = 0.0; 
@@ -208,27 +205,19 @@ __global__ void ComputeCoulombGridSheet(
                             framework_atoms[framework_atom_index].z_f,
                             x_framework, y_framework, z_framework);
 
-                    // S(k) structure factor (2 \pi taken care of in reciprocal lattice vectors)
-                    S_real_part += framework_atoms[framework_atom_index].charge * 
-                        cos(k0 * x_framework + k1 * y_framework + k2 * z_framework);
-                    S_im_part += framework_atoms[framework_atom_index].charge * 
-                        sin(k0 * x_framework + k1 * y_framework + k2 * z_framework);
+                    energy_Coulomb_lr_this_k += framework_atoms[framework_atom_index].charge * 
+                        cos(k0 * (x_framework - x) + 
+                            k1 * (y_framework - y) +
+                            k2 * (z_framework - z));
                 }
-                // for the point charge
-                double S_real_part_this = cos(k0 * x + k1 * y + k2 * z);
-                double S_im_part_this = sin(k0 * x + k1 * y + k2 * z);
-
-                double mag_S_squared = S_real_part * S_real_part_this + S_im_part * S_im_part_this;
-
-                // add contribution to long-range Coulomb potential
-                energy_Coulomb_lr += exp(- mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared * mag_S_squared;
+                energy_Coulomb_lr_this_k = energy_Coulomb_lr_this_k * exp(- mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared;
+                energy_Coulomb_lr += energy_Coulomb_lr_this_k;
             } // end kz loop
         } // end ky loop
     } // end kx loop
-    energy_Coulomb_lr = energy_Coulomb_lr / parameters.volume_unitcell / ew_params.eps0;
+    energy_Coulomb_lr = energy_Coulomb_lr / parameters.volume_unitcell / ew_params.eps0;  // divide by (V \epsilon_0)
 
     energy = energy_Coulomb_sr + energy_Coulomb_lr;
-    // subtract off self-interaction energy later
     
     //
     // Write energies to array
