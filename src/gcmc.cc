@@ -167,7 +167,7 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
     // for each point charge in this adsorbate molecule
     for (int c_this = 0; c_this < adsorbates[adsorbateid].ncharges; c_this++) {
         // get fractional coord of this point charge in this adsorbate
-        boo::matrix_column<boo::matrix<double> > xf_this_charge(adsorbates[adsorbateid].charge_xyz_f, c_this);
+        boo::matrix_column<boo::matrix<double>> xf_this_charge(adsorbates[adsorbateid].charge_xyz_f, c_this);
         // for each other guest molecule 
         for (int k = 0 ; k < adsorbates.size(); k++) {
             // do not include self interation!
@@ -186,8 +186,8 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
 
                 // distance in Cartesian
                 boo::vector<double> dx = prod(t_matrix, dx_f);
-                
                 double r2 = inner_prod(dx, dx);
+                
                 // compute short-range Coulomb energy
                 if (r2 < ew_params.cutoff_squared) {
                     double r = sqrt(r2);
@@ -429,7 +429,7 @@ int main(int argc, char *argv[])
         printf("Constructed Framework object\n");
 
     // get Ewald params (reciprocal lattice vecs)
-    ew_params = GetEwaldParams(framework, parameters.verbose);
+    ew_params = GetEwaldParams(framework, uc_reps, parameters.verbose);
 
     //
     // Read adsorbate info
@@ -666,6 +666,7 @@ int main(int argc, char *argv[])
         forcefield,
         grid_info,
         Coulomb_grid_info,
+        ew_params,
         uc_reps,
         t_matrix,
         inv_t_matrix,
@@ -1315,5 +1316,6 @@ int main(int argc, char *argv[])
     fprintf(outputfile, "     <E_gf> Coulomb = %f kJ/mol = %f K\n", stats.E_gf_Coulomb_avg * 8.314 / 1000.0, stats.E_gf_Coulomb_avg);
 
     fclose(outputfile); 
-    fclose(adsorbatepositionfile); 
+    if (parameters.writeadsorbatepositions)
+        fclose(adsorbatepositionfile); 
 }

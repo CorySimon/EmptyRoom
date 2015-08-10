@@ -318,7 +318,7 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
         //
         // Get the bead names and positions
         //
-        std::vector<std::string> beadnames(nbeads);
+        std::string beadname;
         std::getline(adsorbatefile, line);  // -----
         std::getline(adsorbatefile, line);  // Lennard-Jones beads:
         std::getline(adsorbatefile, line);  // Name x y z
@@ -326,9 +326,8 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
             std::getline(adsorbatefile, line);
             linestream.str(line); linestream.clear();
 
-            linestream >> beadnames[b] >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b);
-            if (verbose)
-                printf("\t%s\n", beadnames[b].c_str());
+            linestream >> beadname >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b);
+            adsorbate.beadtypes[b] = beadlabel_to_int[beadname];
         }
 
         //

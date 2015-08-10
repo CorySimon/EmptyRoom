@@ -16,6 +16,7 @@ void WriteSettingsToOutputfile(FILE * outputfile,
         Forcefield forcefield,
         GridInfo grid_info,
         GridInfo Coulomb_grid_info,
+        EWaldParameters ew_params,
         std::vector<int> uc_reps,
         boo::matrix<double> t_matrix,
         boo::matrix<double> inv_t_matrix,
@@ -41,12 +42,15 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     for (int i = 0; i < parameters.numadsorbates; i ++) {
         fprintf(outputfile, "    Adsorbate %s\n", adsorbate[i].c_str());
         fprintf(outputfile, "        molecular weight = %f\n", adsorbateMW[i]);
-        fprintf(outputfile, "        number of beads: %d\n", adsorbatetemplates[i].nbeads);
+        fprintf(outputfile, "        number of LJ beads: %d\n", adsorbatetemplates[i].nbeads);
         for (int b = 0; b < adsorbatetemplates[i].nbeads; b++) {
             fprintf(outputfile, "          %s, bead type ID %d\n", int_to_beadlabel[adsorbatetemplates[i].beadtypes[b]].c_str(), adsorbatetemplates[i].beadtypes[b]);
             fprintf(outputfile, "             x = (%f, %f, %f)\n", adsorbatetemplates[i].bead_xyz(0, b), adsorbatetemplates[i].bead_xyz(1, b), adsorbatetemplates[i].bead_xyz(2, b));
-            fprintf(outputfile, "             charge = %f\n", adsorbatetemplates[i].beadcharges[b]);
         }
+        fprintf(outputfile, "        number of point charges: %d\n", adsorbatetemplates[i].ncharges);
+        for (int c = 0; c < adsorbatetemplates[i].ncharges; c++)
+            fprintf(outputfile, "             charge = %f, x = (%f, %f, %f)\n", adsorbatetemplates[i].charges[c], 
+                        adsorbatetemplates[i].charge_xyz(0, c), adsorbatetemplates[i].charge_xyz(1, c), adsorbatetemplates[i].charge_xyz(2, c));
     }
 
 
@@ -123,6 +127,17 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     fprintf(outputfile, "    Prob(particle translation): %f\n", parameters.p_move);
     fprintf(outputfile, "    Prob(particle ID swap): %f\n", parameters.p_identity_change);
     fprintf(outputfile, "    Prob(regrow): %f\n", parameters.p_regrow);
+    
+    if (parameters.charged_adsorbate_flag) {
+        fprintf(outputfile, "\nEwald summation parameters.\n");
+        fprintf(outputfile, "    alpha convergence parameter: %f\n", ew_params.alpha);
+        fprintf(outputfile, "    short-range cutoff (A): %f\n", sqrt(ew_params.cutoff_squared));
+        fprintf(outputfile, "    k-space replications = (%d, %d, %d)\n", ew_params.kx, ew_params.kx, ew_params.kz);
+        fprintf(outputfile, "    reciprocal lattice vectors:\n");
+        fprintf(outputfile, "       bx = [%f, %f, %f]\n", ew_params.b1[0], ew_params.b1[1], ew_params.b1[2]);   
+        fprintf(outputfile, "       by = [%f, %f, %f]\n", ew_params.b2[0], ew_params.b2[1], ew_params.b2[2]);   
+        fprintf(outputfile, "       bz = [%f, %f, %f]\n", ew_params.b3[0], ew_params.b3[1], ew_params.b3[2]);   
+    }
 
     //
     // Grid info

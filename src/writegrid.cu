@@ -137,7 +137,8 @@ int main(int argc, char *argv[]) {
     //
     // Construct reciprocal lattice vectors on device for EWald summations
     //
-    EWaldParameters ew_params = GetEwaldParams(framework, parameters.verbose);
+    std::vector<int> all_ones(3); all_ones[0] = 1; all_ones[1] = 1; all_ones[2] = 1;
+    EWaldParameters ew_params = GetEwaldParams(framework, all_ones, parameters.verbose);
     thrust::device_vector<double> b1(3);
     thrust::device_vector<double> b2(3);
     thrust::device_vector<double> b3(3);
