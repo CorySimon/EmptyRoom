@@ -31,21 +31,36 @@ bool OutsideUnitCell(double & x_f, double & y_f, double & z_f,
 class Adsorbate {
     public:
         int type;  // adsorbate identity
-        int nbeads;  // number of beads in adsorbate
+
+        //
+        // Lennard Jones beads
+        //
+        int nbeads;  // number of LJ beads in adsorbate
         boo::matrix<double> bead_xyz; // Cartesian coordinates of beads stored column-wise
         boo::matrix<double> bead_xyz_f; // Fractional coordinates of beads stored column-wise
         std::vector<int> beadtypes;  // Integer ID of bead type
-        std::vector<double> beadcharges;  // Charge on bead
-        bool charged;  // does the adsorbate include a charge?
 
-        Adsorbate(int nbeads_)
+        //
+        // Point charges
+        //
+        int ncharges;
+        std::vector<double> charges;  // Charge on bead
+        boo::matrix<double> charge_xyz; // Cartesian coordinates of charges stored column-wise
+        boo::matrix<double> charge_xyz_f; // Fractional coordinates of charges stored column-wise
+
+        //
+        // Constructor. Sets sizes of matrices/vectors
+        //
+        Adsorbate(int nbeads_, int ncharges_)
             :bead_xyz(3, nbeads_),  // preallocate size as 3 by nbeads
              bead_xyz_f(3, nbeads_),  // preallocate size as 3 by nbeads
-             beadtypes(nbeads_),
-             beadcharges(nbeads_)
+             charge_xyz(3, ncharges_),
+             charge_xyz_f(3, ncharges_),
+             charges(ncharges_),
+             beadtypes(nbeads_)
         {
-            // Constructor 
             nbeads = nbeads_;
+            ncharges = ncharges_;
             // give bogus types for safety
             type = -1;
             for (int i = 0; i < nbeads_; i++)
@@ -58,43 +73,63 @@ class Adsorbate {
                                            std::vector<int> & uc_reps) {
             // translate by Cartesian vector dx
             
-            // update Cartesian coords first
+            //
+            // update Cartesian coords of LJ beads and charges
+            //
             for (int b = 0; b < nbeads; b++) {
                 bead_xyz(0, b) += dx[0];
                 bead_xyz(1, b) += dx[1];
                 bead_xyz(2, b) += dx[2];
             }
-
-            // update fractional coords
-            bead_xyz_f = boo::prod(inv_t_matrix, bead_xyz);
+            for (int c = 0; c < ncharges; c++) {
+                charge_xyz(0, c) += dx[0];
+                charge_xyz(1, c) += dx[1];
+                charge_xyz(2, c) += dx[2];
+            }
             
-            // if FIRST bead outside simulation box, move ENTIRE guest
+            //
+            // update fractional coords
+            //
+            bead_xyz_f = boo::prod(inv_t_matrix, bead_xyz);
+            charge_xyz_f = boo::prod(inv_t_matrix, charge_xyz);
+
+            //
+            //  Apply periodic BCs
+            //
+            // if FIRST LJ bead outside simulation box, move ENTIRE guest
             bool outside_simbox = false;
+            // Loop over fractional coords. If outside [0, uc_reps[i]]...
             for (int i = 0; i < 3; i++) {
-                // loop over components
                 if (bead_xyz_f(i, 0) > 1.0 * uc_reps[i]) {
                     for (int b = 0; b < nbeads; b++)
                         bead_xyz_f(i, b) -= 1.0 * uc_reps[i];
+                    for (int c = 0; c < ncharges; c++)
+                        charge_xyz_f(i, c) -= 1.0 * uc_reps[i];
                     outside_simbox = true;
                 }
                 else if (bead_xyz_f(i, 0) < 0.0) {
                     for (int b = 0; b < nbeads; b++)
                         bead_xyz_f(i, b) += 1.0 * uc_reps[i];
+                    for (int c = 0; c < ncharges; c++)
+                        charge_xyz_f(i, c) += 1.0 * uc_reps[i];
                     outside_simbox = true;
                 }
             }
             if (outside_simbox) {
                 // update Cartesian
                 bead_xyz = boo::prod(t_matrix, bead_xyz_f);
+                charge_xyz = boo::prod(t_matrix, charge_xyz_f);
             }
         }
 
         void print_info() {
             printf("\nAdsorbate type %d.\n", type);
-            printf("\tNumber of beads = %d\n", nbeads);
-            for (int b = 0; b < nbeads; b++) {
-               printf("\tBead %d. Type %d. x=(%f, %f, %f), charge = %f\n", b, beadtypes[b], bead_xyz(0, b), bead_xyz(1, b), bead_xyz(2, b), beadcharges[b]);
-            }
+            printf("\t%d Lennard-Jones beads\n", nbeads);
+            for (int b = 0; b < nbeads; b++)
+               printf("\tBead %d. Type %d. x=(%f, %f, %f)\n", b, beadtypes[b], bead_xyz(0, b), bead_xyz(1, b), bead_xyz(2, b));
+            printf("\t%d Point charges\n", ncharges);
+            for (int c = 0; c < ncharges; c++)
+                printf("\tCharge %d. Charge = %f, x= (%f, %f, %f)\n", c, charges[c], charge_xyz(0, c), charge_xyz(1, c), charge_xyz(2, c));
             printf("\n");
         }
 };
@@ -132,7 +167,7 @@ boo::vector<double> cross_product(boo::vector<double> & a, boo::vector<double> &
 void PerformUniformRandomRotation(Adsorbate & adsorbate, 
                                   std::mt19937 & generator, 
                                   std::normal_distribution<double> & std_normal_distn) {
-    // rotate adsorbate molecule
+    // rotate adsorbate molecule. WARNING: only updates Cartesian coords, not fractional
     // MUST have first bead at (0, 0, 0) to preserve bond lengths
     if ((adsorbate.bead_xyz(0, 0) != 0.0) | (adsorbate.bead_xyz(1, 0) != 0.0) | (adsorbate.bead_xyz(1, 0) != 0.0)) {
         // TODO: remove later
@@ -174,7 +209,11 @@ void PerformUniformRandomRotation(Adsorbate & adsorbate,
 //    for (int i = 0; i<3;i++)
 //        printf("%f %f %f\n", R(i,0), R(i,1), R(i,2));
     
-    adsorbate.bead_xyz = prod(R, adsorbate.bead_xyz);
+    //
+    // Rotate Cartesian coords
+    //
+    adsorbate.bead_xyz = boo::prod(R, adsorbate.bead_xyz);
+    adsorbate.charge_xyz = boo::prod(R, adsorbate.charge_xyz);
 }
 
 std::map<std::string, int> GetBeadMap(std::vector<std::string> adsorbatelist, bool verbose) {
@@ -190,7 +229,10 @@ std::map<std::string, int> GetBeadMap(std::vector<std::string> adsorbatelist, bo
             printf("adsorbate info file not found...: %s\n", adsorbatefilename);
             exit(EXIT_FAILURE);
         }
+
+        //
         // Get number of beads in this adsorbate
+        //
         int nbeads;
         std::string line;
         std::getline(adsorbatefile, line);
@@ -204,9 +246,13 @@ std::map<std::string, int> GetBeadMap(std::vector<std::string> adsorbatelist, bo
         }
 
         // Get the bead names
-        std::getline(adsorbatefile, line);
-        linestream.str(line); linestream.clear();
+        std::getline(adsorbatefile, line);  // x point charges
+        std::getline(adsorbatefile, line);  // ---------------
+        std::getline(adsorbatefile, line);  // Lennard-Jones beads:
+        std::getline(adsorbatefile, line);  // Name x y z
         for (int b = 0; b < nbeads; b++) {
+            std::getline(adsorbatefile, line);  // [Name x y z]_{bead i}
+            linestream.str(line); linestream.clear();
             std::string beadname;
             linestream >> beadname;
             if (verbose)
@@ -222,7 +268,7 @@ std::map<std::string, int> GetBeadMap(std::vector<std::string> adsorbatelist, bo
     }
 
     if (verbose) {
-        printf("%d unique beads.\n", nuniquebeads);
+        printf("%d unique Lennard-Jones beads.\n", nuniquebeads);
 
         for (std::map<std::string, int>::iterator it=beadlabel_to_int.begin(); it!=beadlabel_to_int.end(); ++it)
             std::cout << it->first << " => " << it->second << '\n';
@@ -246,63 +292,82 @@ std::vector<Adsorbate> GetAdsorbateTemplates(std::vector<std::string> adsorbatel
             printf("adsorbate info file not found: %s\n", adsorbatefilename);
             exit(EXIT_FAILURE);
         }
-        // Get number of beads in this adsorbate
-        int nbeads;
+        
+        //
+        // Get number of LJ beads and point charges in this adsorbate
+        //
+        int nbeads, ncharges;
+        // LJ beads
         std::string line;
         std::getline(adsorbatefile, line);
         std::istringstream linestream(line);
         linestream >> nbeads;
-        if (verbose)
-            printf("Adsorbate %s: %d beads.\n", adsorbatelist[a].c_str(), nbeads);
-
-        // construct adsorbate
-        Adsorbate adsorbate(nbeads);
-        adsorbate.type = a;
-
-        // Get the bead names
-        std::vector<std::string> beadnames(nbeads);
-
+        // point charges 
         std::getline(adsorbatefile, line);
         linestream.str(line); linestream.clear();
-        for (int b = 0; b < nbeads; b++) {
-            linestream >> beadnames[b];
-            if (verbose)
-                printf("\t%s\n", beadnames[b].c_str());
-        }
-         
-        // get postitions
-        getline(adsorbatefile, line);  // "bead positions.csv"
-        getline(adsorbatefile, line);  // "xyz"
+        linestream >> ncharges;
+        if (verbose)
+            printf("Adsorbate %s: %d LJ beads, %d charges.\n", adsorbatelist[a].c_str(), nbeads, ncharges);
+        
+        //
+        // construct adsorbate
+        //
+        Adsorbate adsorbate(nbeads, ncharges);
+        adsorbate.type = a;
+        
+        //
+        // Get the bead names and positions
+        //
+        std::vector<std::string> beadnames(nbeads);
+        std::getline(adsorbatefile, line);  // -----
+        std::getline(adsorbatefile, line);  // Lennard-Jones beads:
+        std::getline(adsorbatefile, line);  // Name x y z
         for (int b = 0; b < nbeads; b++) {
             std::getline(adsorbatefile, line);
             linestream.str(line); linestream.clear();
-            
-            adsorbate.beadtypes[b] = beadlabel_to_int[beadnames[b]];
 
-            linestream >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b) >> adsorbate.beadcharges[b];
+            linestream >> beadnames[b] >> adsorbate.bead_xyz(0, b) >> adsorbate.bead_xyz(1, b) >> adsorbate.bead_xyz(2, b);
+            if (verbose)
+                printf("\t%s\n", beadnames[b].c_str());
         }
 
-        // ensure first bead is at origin
+        //
+        // Get point charges
+        //
+        std::getline(adsorbatefile, line);  // -----
+        std::getline(adsorbatefile, line);  // Point charges:
+        std::getline(adsorbatefile, line);  // x y z charge
+        for (int c = 0; c < ncharges; c++) {
+            std::getline(adsorbatefile, line);
+            linestream.str(line); linestream.clear();
+            linestream >> adsorbate.charge_xyz(0, c) >> adsorbate.charge_xyz(1, c) >> adsorbate.charge_xyz(2, c) >> adsorbate.charges[c];
+        }
+        
+        //
+        // Ensure first LJ bead is at origin
+        //
         for (int b = 0; b < nbeads; b++) {
             adsorbate.bead_xyz(0, b) -= adsorbate.bead_xyz(0, 0);
             adsorbate.bead_xyz(1, b) -= adsorbate.bead_xyz(1, 0);
             adsorbate.bead_xyz(2, b) -= adsorbate.bead_xyz(2, 0);
         }
-        
-        // if any beads are charged, declare chargedtag true
-        double total_charge = 0.0;
-        adsorbate.charged = false;  // predeclare as false
-        for (int b = 0; b < nbeads; b++) {
-            total_charge += adsorbate.beadcharges[b];
-            if ((adsorbate.beadcharges[b] > 0.0000001) | (adsorbate.beadcharges[b] < -.0000001))
-                adsorbate.charged = true;
+        for (int c = 0; c < ncharges; c++) {
+            adsorbate.charge_xyz(0, c) -= adsorbate.bead_xyz(0, 0);
+            adsorbate.charge_xyz(1, c) -= adsorbate.bead_xyz(1, 0);
+            adsorbate.charge_xyz(2, c) -= adsorbate.bead_xyz(2, 0);
         }
-
-        // check for charge neutrality
-        if (total_charge != 0.0) {
+        
+        // 
+        // Check for charge neutrality
+        //
+        double total_charge = 0.0;
+        for (int c = 0; c < ncharges; c++)
+            total_charge += adsorbate.charges[c];
+        
+        if ((total_charge > 0.0001) | (total_charge < -0.0001)) {
             printf("Net charge of adsorbate %d is %f != 0.0\n", adsorbate.type, total_charge);
-            for (int b = 0; b < nbeads; b++)
-                printf("\tBead %d charge: %f\n", b, adsorbate.beadcharges[b]);
+            for (int c = 0; c < ncharges; c++)
+                printf("\tPoint charge %d charge: %f\n", c, adsorbate.charges[c]);
         }
 
         adsorbatefile.close();

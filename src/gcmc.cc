@@ -92,6 +92,7 @@ double ReadTimer() {
 }
 
 void write_adsorbate_positions_to_file(std::vector<Adsorbate> adsorbates, FILE * adsorbatepositionfile) {
+    // Write positions of adsorbate beads to file
     for (int i = 0; i < adsorbates.size(); i++) {
         for (int b = 0; b < adsorbates[i].nbeads; b++)
             fprintf(adsorbatepositionfile, "%s %f %f %f\n", int_to_beadlabel[adsorbates[i].beadtypes[b]].c_str(), 
@@ -163,43 +164,34 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
     // Short-range
     //
     double E_sr = 0.0; // short range
-    // for each bead in this adsorbate molecule
-    for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
-        // get fractional coord of this bead in this adsorbate
-        boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
+    // for each point charge in this adsorbate molecule
+    for (int c_this = 0; c_this < adsorbates[adsorbateid].ncharges; c_this++) {
+        // get fractional coord of this point charge in this adsorbate
+        boo::matrix_column<boo::matrix<double> > xf_this_charge(adsorbates[adsorbateid].charge_xyz_f, c_this);
         // for each other guest molecule 
         for (int k = 0 ; k < adsorbates.size(); k++) {
             // do not include self interation!
             if (k == adsorbateid) 
                 continue; 
-            // get energy contribution from each bead in other adsorbate molecule
-            for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
-                boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
+            // get energy contribution from each point charge in other adsorbate molecule
+            for (int c_other = 0; c_other < adsorbates[k].ncharges; c_other++) {
+                boo::matrix_column<boo::matrix<double> > xf_other_charge(adsorbates[k].charge_xyz_f, c_other);
 
                 // distance in fractional coords
-                boo::vector<double> dx_f = xf_this_bead - xf_other_bead;
+                boo::vector<double> dx_f = xf_this_charge - xf_other_charge;
 
                 // take nearest image
-                for (int i_ = 0; i_ < 3; i_++) {
+                for (int i_ = 0; i_ < 3; i_++)
                     dx_f[i_] = dx_f[i_] - uc_reps[i_] * round(dx_f[i_] / uc_reps[i_]);
-//                    // assert within bounds #todo remove later
-//                    assert(dx_f[i_] < 0.5 * uc_reps[i_]);
-//                    assert(dx_f[i_] > -0.5 * uc_reps[i_]);
-                }
 
                 // distance in Cartesian
                 boo::vector<double> dx = prod(t_matrix, dx_f);
                 
                 double r2 = inner_prod(dx, dx);
-                // check for overlap
-                if (r2 < min_r) {
-                    OVERLAP = true;
-                    return 10000000000000000.0;
-                }
                 // compute short-range Coulomb energy
                 if (r2 < ew_params.cutoff_squared) {
                     double r = sqrt(r2);
-                    E_sr += adsorbates[k].beadcharges[b_other] * adsorbates[adsorbateid].beadcharges[b_this] / 
+                    E_sr += adsorbates[k].charges[c_other] * adsorbates[adsorbateid].charges[c_this] / 
                                         r * erfc(r * sqrt(ew_params.alpha)) / (4 * M_PI * ew_params.eps0);
                 }
             }  // end loop over BEADS of other guest molecule
@@ -226,32 +218,32 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
 
                 // Loop over framework atoms
                 double E_lr_this_k = 0.0;
-                for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
-                    // get fractional coord of this bead in this adsorbate
-                    boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
-                    boo::vector<double> x_this_bead = prod(t_matrix, xf_this_bead);
+                for (int c_this = 0; c_this < adsorbates[adsorbateid].ncharges; c_this++) {
+                    // get fractional coord of this point charge in this adsorbate
+                    boo::matrix_column<boo::matrix<double> > xf_this_charge(adsorbates[adsorbateid].charge_xyz_f, c_this);
+                    boo::vector<double> x_this_charge = prod(t_matrix, xf_this_charge);
                     
                     for (int k = 0 ; k < adsorbates.size(); k++) {
                         // do not include self interation!
                         if (k == adsorbateid) 
                             continue; 
-                        // get energy contribution from each bead in other adsorbate molecule
-                        for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
-                            // get position of this bead
-                            boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
-                            boo::vector<double> x_other_bead = prod(t_matrix, xf_other_bead);
+                        // get energy contribution from each point charge in other adsorbate molecule
+                        for (int c_other = 0; c_other < adsorbates[k].ncharges; c_other++) {
+                            // get position of this point charge
+                            boo::matrix_column<boo::matrix<double> > xf_other_charge(adsorbates[k].charge_xyz_f, c_other);
+                            boo::vector<double> x_other_charge = prod(t_matrix, xf_other_charge);
 
-                            E_lr_this_k += adsorbates[k].beadcharges[b_other] * adsorbates[adsorbateid].beadcharges[b_this] *
-                                cos(k0 * (x_other_bead[0] - x_this_bead[0]) +
-                                    k1 * (x_other_bead[1] - x_this_bead[1]) + 
-                                    k2 * (x_other_bead[2] - x_this_bead[2]));
-                        }  // end loop over BEADS of other guest molecule
+                            E_lr_this_k += adsorbates[k].charges[c_other] * adsorbates[adsorbateid].charges[c_this] *
+                                cos(k0 * (x_other_charge[0] - x_this_charge[0]) +
+                                    k1 * (x_other_charge[1] - x_this_charge[1]) + 
+                                    k2 * (x_other_charge[2] - x_this_charge[2]));
+                        }  // end loop over charges of other guest molecule
                     }  // end loop over other guest molecules
                     
                     // add contribution to long-range Coulomb potential
                     E_lr_this_k = E_lr_this_k * exp(-mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared;
                     E_lr += E_lr_this_k;
-                }  // end loop over beads of THIS guest molecule
+                }  // end loop over charges of THIS guest molecule
             } // end kz loop
         } // end ky loop
     } // end kx loop
@@ -343,12 +335,12 @@ double GuestFrameworkCoulombEnergy(Adsorbate adsorbate,
                             double * Coulomb_grid) {
     // Compute Coulomb energy of adsorbate with framework
     double E_gf = 0.0;
-    for (int b = 0; b < adsorbate.nbeads; b++) {  
+    for (int c = 0; c < adsorbate.ncharges; c++) {  
         // for each bead that makes up this guest molecule
-        E_gf += adsorbate.beadcharges[b] * BeadFrameworkEnergy(
-                                    WrapToInterval(adsorbate.bead_xyz_f(0, b), 1.0),
-                                    WrapToInterval(adsorbate.bead_xyz_f(1, b), 1.0),
-                                    WrapToInterval(adsorbate.bead_xyz_f(2, b), 1.0),
+        E_gf += adsorbate.charges[c] * BeadFrameworkEnergy(
+                                    WrapToInterval(adsorbate.charge_xyz_f(0, c), 1.0),
+                                    WrapToInterval(adsorbate.charge_xyz_f(1, c), 1.0),
+                                    WrapToInterval(adsorbate.charge_xyz_f(2, c), 1.0),
                                     Coulomb_grid_info, Coulomb_grid);
     }
     return E_gf;
@@ -455,7 +447,7 @@ int main(int argc, char *argv[])
     // are there charged adsorbates in the system?
     parameters.charged_adsorbate_flag = false;
     for (int i = 0; i < parameters.numadsorbates; i++) {
-        if (adsorbatetemplates[i].charged == true)
+        if (adsorbatetemplates[i].ncharges > 0)
             parameters.charged_adsorbate_flag = true;
     }
     int nuniquebeads = beadlabel_to_int.size();
