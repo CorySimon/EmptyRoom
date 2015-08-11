@@ -247,7 +247,7 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
             } // end kz loop
         } // end ky loop
     } // end kx loop
-    E_lr = E_lr / parameters.volume_unitcell / ew_params.eps0;
+    E_lr = E_lr / parameters.volume_supercell / ew_params.eps0;
 
     return E_sr + E_lr;
 }
@@ -423,7 +423,7 @@ int main(int argc, char *argv[])
             inv_t_matrix(i, j) = framework.inv_t_matrix[i][j];
         }
     }
-    parameters.volume_unitcell = framework.volume_unitcell;
+    parameters.volume_supercell = framework.volume_unitcell * uc_reps[0] * uc_reps[1] * uc_reps[2]; // A ^ 3
     parameters.N_framework_atoms = framework.noatoms;
     if (parameters.verbose) 
         printf("Constructed Framework object\n");

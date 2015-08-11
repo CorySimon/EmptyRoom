@@ -114,7 +114,7 @@ struct GCMCParameters {
     bool verbose; // 0 or 1 for verbose printing
     bool debugmode; // print details of each move for debugging
     double r_cutoff_squared; // cutoff for LJ potential (A), squared
-    double volume_unitcell;  // volume of unit cell (A3)
+    double volume_supercell;  // volume of unit cell (A3)
     int feynmanhibbs;
     double T; // temperature (K)
     double delta; // spatial step in moves
