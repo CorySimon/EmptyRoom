@@ -30,7 +30,6 @@ struct EWaldParameters {
 
     double eps0;  // vacuum permittivity (electron charge^2/(A-K))
     double alpha;  // in Gaussian charge
-    double cutoff_squared;  // (A^2) short-range cutoff
     
     // how many k-vector replications for long-range interactions
     int kx, ky, kz;
@@ -120,6 +119,7 @@ struct GCMCParameters {
     double delta; // spatial step in moves
     int numtrials, samplefrequency, numequilibriumtrials; // sample every X MC moves, burn period equilibrium_trials
     double p_move, p_exchange, p_identity_change, p_regrow; // probability of a move(translation) and exchange with bath(delete/insert). or identity change for dual component only
+    double EWald_precision;
 
     bool charged_adsorbate_flag;  // true if adsorbate is charged
 

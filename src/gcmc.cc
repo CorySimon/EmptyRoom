@@ -32,7 +32,7 @@ namespace boo = boost::numeric::ublas;
 #include "write_settings_to_outputfile_gcmc.h"
 #include <sys/time.h>
 //#include "pocketblocking.h"
-#define min_r .0000001  // don't want to divide by zero...
+#define min_r .1  // don't want to divide by zero...
 
 /* 
  * Global Variables for ease. BE CAREFUL!
@@ -189,7 +189,7 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                 double r2 = inner_prod(dx, dx);
                 
                 // compute short-range Coulomb energy
-                if (r2 < ew_params.cutoff_squared) {
+                if (r2 < r_cutoff_squared) {
                     double r = sqrt(r2);
                     E_sr += adsorbates[k].charges[c_other] * adsorbates[adsorbateid].charges[c_this] / 
                                         r * erfc(r * sqrt(ew_params.alpha)) / (4 * M_PI * ew_params.eps0);
@@ -239,11 +239,10 @@ double GuestGuestCoulombEnergy(std::vector<Adsorbate> & adsorbates,
                                     k2 * (x_other_charge[2] - x_this_charge[2]));
                         }  // end loop over charges of other guest molecule
                     }  // end loop over other guest molecules
-                    
-                    // add contribution to long-range Coulomb potential
-                    E_lr_this_k = E_lr_this_k * exp(-mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared;
-                    E_lr += E_lr_this_k;
                 }  // end loop over charges of THIS guest molecule
+                // add contribution to long-range Coulomb potential
+                E_lr_this_k = E_lr_this_k * exp(-mag_k_squared/ 4.0 / ew_params.alpha) / mag_k_squared;
+                E_lr += E_lr_this_k;
             } // end kz loop
         } // end ky loop
     } // end kx loop
@@ -394,6 +393,8 @@ int main(int argc, char *argv[])
         printf("Only 1 adsorbate and ID swap probability > 1... Make it zero.\n");
         exit(EXIT_FAILURE);
     }
+    if (parameters.makeassertions)
+        printf("Making assertions... Code will run slowly.\n");
     r_cutoff_squared = parameters.r_cutoff_squared;  // make global var
     
     // uc needs to be at least twice the cutoff radius for only methane within r_c to be within cutoff
@@ -429,7 +430,7 @@ int main(int argc, char *argv[])
         printf("Constructed Framework object\n");
 
     // get Ewald params (reciprocal lattice vecs)
-    ew_params = GetEwaldParams(framework, uc_reps, parameters.verbose);
+    ew_params = GetEwaldParams(framework, uc_reps, sqrt(r_cutoff_squared), parameters.EWald_precision, parameters.verbose);
 
     //
     // Read adsorbate info
@@ -1231,6 +1232,25 @@ int main(int argc, char *argv[])
                             exit(EXIT_FAILURE);
                         }
                    }  // end loop over beads in guest
+                   // assert guest charges fractional and caretesian match
+                   for (int c = 0; c < adsorbates[g].ncharges; c++) {
+                        // for each bead
+                        boo::matrix_column<boo::matrix<double> > xf_this_charge(adsorbates[g].charge_xyz_f, c);
+                        boo::matrix_column<boo::matrix<double> > x_this_charge(adsorbates[g].charge_xyz, c);
+                        boo::vector<double> predicted_x = boo::prod(t_matrix, xf_this_charge);
+                        if (
+                                (predicted_x[0] >  x_this_charge[0] + coords_tol) |
+                                (predicted_x[0] <  x_this_charge[0] - coords_tol) |
+                                (predicted_x[1] >  x_this_charge[1] + coords_tol) |
+                                (predicted_x[1] <  x_this_charge[1] - coords_tol) |
+                                (predicted_x[2] >  x_this_charge[2] + coords_tol) |
+                                (predicted_x[2] <  x_this_charge[2] - coords_tol)
+                           ) {
+                            printf("Guest %d, CHARGE %d does not hv match between frac and cart coords.\n", g, c);
+                            exit(EXIT_FAILURE);
+                        }
+                    }  // end loop over charges in guest
+
                 }  // end loop over guests
                 int N_g_total = 0;
                 for (int i = 0; i < parameters.numadsorbates; i++) {

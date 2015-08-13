@@ -97,8 +97,9 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     //
     if (parameters.Coulomb_grid_flag) {
         fprintf(outputfile, "\nELECTROSTATIC POTENTIAL ENERGY GRID.\n");
-        fprintf(outputfile, "   alpha = %f\n", ew_params.alpha); 
-        fprintf(outputfile, "   short-range cutoff = %f\n", sqrt(ew_params.cutoff_squared)); 
+        fprintf(outputfile, "   Ewald precision specified: %e\n", parameters.EWald_precision);
+        fprintf(outputfile, "   short-range cutoff = %f\n", sqrt(parameters.r_cutoff_squared)); 
+        fprintf(outputfile, "   alpha convergence parameter = %f\n", ew_params.alpha); 
         fprintf(outputfile, "   k-vector reps = (%d, %d, %d)\n", ew_params.kx, ew_params.ky, ew_params.kz);
         fprintf(outputfile, "   Reciprocal lattice vectors:\n"
                             "     x: (%f, %f, %f)\n"

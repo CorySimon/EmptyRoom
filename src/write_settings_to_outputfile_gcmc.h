@@ -94,6 +94,7 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     // Forcefield information
     //
     fprintf(outputfile, "\nForcefield: %s\n", forcefield.name.c_str());
+    fprintf(outputfile, "    LJ cutoff radius = %f\n", sqrt(parameters.r_cutoff_squared));
     fprintf(outputfile, "    Unit cell replication factors: %d %d %d\n", 
                     uc_reps[0], uc_reps[1], uc_reps[2]);
     fprintf(outputfile, "    Pure bead interactions:\n");
@@ -130,8 +131,9 @@ void WriteSettingsToOutputfile(FILE * outputfile,
     
     if (parameters.charged_adsorbate_flag) {
         fprintf(outputfile, "\nEwald summation parameters.\n");
+        fprintf(outputfile, "    Ewald precision specified: %e\n", parameters.EWald_precision);
         fprintf(outputfile, "    alpha convergence parameter: %f\n", ew_params.alpha);
-        fprintf(outputfile, "    short-range cutoff (A): %f\n", sqrt(ew_params.cutoff_squared));
+        fprintf(outputfile, "    short-range cutoff (A): %f\n", sqrt(parameters.r_cutoff_squared));
         fprintf(outputfile, "    k-space replications = (%d, %d, %d)\n", ew_params.kx, ew_params.kx, ew_params.kz);
         fprintf(outputfile, "    reciprocal lattice vectors:\n");
         fprintf(outputfile, "       bx = [%f, %f, %f]\n", ew_params.b1[0], ew_params.b1[1], ew_params.b1[2]);   
