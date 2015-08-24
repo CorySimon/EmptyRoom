@@ -166,7 +166,7 @@ __global__ void ComputeCoulombGridSheet(
                     double r2 = dx*dx + dy*dy + dz*dz; //r squared
                     r2 = (r2 > min_r * min_r) ? r2 : min_r * min_r; // min radius to prevent blow-up
 
-                    if (r2 < ew_params.cutoff_squared) {
+                    if (r2 < parameters.r_cutoff_squared) {
                         double r = sqrt(r2);
                         energy_Coulomb_sr += framework_atoms[framework_atom_index].charge / r * erfc(r * sqrt(ew_params.alpha)) / (4 * M_PI * ew_params.eps0);
                     }

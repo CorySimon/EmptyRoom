@@ -1288,6 +1288,7 @@ int main(int argc, char *argv[])
         E_gf_Coulomb_system = TotalGuestFrameworkCoulombEnergy(adsorbates, Coulomb_grid_info, Coulomb_grid);
     }
     
+    fprintf(outputfile, "    N = %d\n", adsorbates.size());
     fprintf(outputfile, "    E_gg total calc'ed at end:\n"
                         "       vdW: %f K\n"
                         "       Coulomb: %f K\n", E_gg_vdW_system, E_gg_Coulomb_system);
