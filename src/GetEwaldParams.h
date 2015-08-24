@@ -3,6 +3,7 @@
 #define Ewald_H
 #include<string>
 #include<vector>
+#include<math.h> // ceil
 #include "Framework.h"
 #include "datatypes.h"
 
@@ -20,8 +21,11 @@ double inner_product(std::vector<double> a, std::vector<double> b) {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
-EWaldParameters GetEwaldParams(Framework framework, bool verbose=false) {
+EWaldParameters GetEwaldParams(Framework framework, std::vector<int> uc_reps, double sr_cutoff, double precision, bool verbose=false) {
     // Fill Ewald Parameters
+    //    Use framework unit cell dimensions to calculate these.
+    //    For GCMC, we need the unit cell reps for the supercell since we are doing guest-guest Ewalds over the supercell
+    //    sr_cutoff : short range cutoff, just make same as LJ for unit cell replication purposes
     //
     EWaldParameters params; 
 
@@ -31,15 +35,18 @@ EWaldParameters GetEwaldParams(Framework framework, bool verbose=false) {
     params.eps0 = 4.7622424954949676e-7;  // \epsilon_0 vacuum permittivity units: electron charge^2 /(A - K)
     
     // in Gaussian used for splitting short and long range interactions (see Berend's book)
-    params.alpha = 0.025;  
-
-    // short-range cutoff
-    params.cutoff_squared = 21.0 * 21.0;
-
+    // alpha convergence parameter
+    // rules for determining from DL Poly
+    // http://www.ccp5.ac.uk/DL_POLY_CLASSIC/FAQ/FAQ2.shtml
+    double blah = sqrt(abs(log(precision * sr_cutoff)));
+    double alpha = sqrt(abs(log(precision * sr_cutoff * blah))) / sr_cutoff;
+    params.alpha = alpha * alpha;  
+    
     // replications in fourier space for long-range interactions
-    params.kx = 7;
-    params.ky = 7;
-    params.kz = 6;
+    double blah_ = sqrt(-log(precision * sr_cutoff * pow(2.0 * blah * alpha, 2)));
+    params.kx = (int) (0.5 + 0.25 + framework.a * alpha * blah_ / M_PI);  // (int) truncates, i.e. rounds down
+    params.ky = (int) (0.5 + 0.25 + framework.b * alpha * blah_ / M_PI);
+    params.kz = (int) (0.5 + 0.25 + framework.c * alpha * blah_ / M_PI);
 
     //
     // Get Reciprocal lattice vectors
@@ -48,9 +55,11 @@ EWaldParameters GetEwaldParams(Framework framework, bool verbose=false) {
     std::vector< std::vector<double> > a;
     for (int i = 0; i < 3; i++) {
         std::vector<double> ai(3);
-        ai[0] = framework.t_matrix[0][i];
-        ai[1] = framework.t_matrix[1][i];
-        ai[2] = framework.t_matrix[2][i];
+        // for GCMC, need to use uc_reps since EWalds are used with periodicity over supercell
+        double scale_column_by = uc_reps[i];
+        ai[0] = framework.t_matrix[0][i] * scale_column_by;
+        ai[1] = framework.t_matrix[1][i] * scale_column_by;
+        ai[2] = framework.t_matrix[2][i] * scale_column_by;
         a.push_back(ai);
     }
     
