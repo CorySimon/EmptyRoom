@@ -65,6 +65,7 @@ void ReadSimulationInputFile(GridParameters & parameters) {
     parameters.r_cutoff_squared = 12.5 * 12.5;
     parameters.feynmanhibbs = false;
     parameters.energy_threshold = 0.0; // for void fraction calc
+    parameters.EWald_precision = 1e-6;
     parameters.T = -1;
     
     // grab from simulation.input
@@ -178,6 +179,7 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
     parameters.samplefrequency = -1;
     parameters.numequilibriumtrials = -1;
     parameters.writeadsorbatepositions = false;
+    parameters.EWald_precision = 1e-6;
 
     // grab from simulation.input
     std::string word;
@@ -196,6 +198,8 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
             simfile >> parameters.verbose;
         if (word=="DebugMode")
             simfile >> parameters.debugmode;
+        if (word=="EWaldPrecision")
+            simfile >> parameters.EWald_precision;
         if (word=="PocketBlocking")
             simfile >> parameters.pocketblocking;
         if (word=="NumberOfTrials")
@@ -241,7 +245,8 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
         printf("Eq trials > total trials!\n");
         exit(EXIT_FAILURE);
     }
-    if ((parameters.p_identity_change + parameters.p_move + parameters.p_exchange + parameters.p_regrow) != 1.0) {
+    if ( (parameters.p_identity_change + parameters.p_move + parameters.p_exchange + parameters.p_regrow > 1.00000001) |
+         (parameters.p_identity_change + parameters.p_move + parameters.p_exchange + parameters.p_regrow < 0.99999999) ) {
         printf("MC trial probabilities do not add to 1.0...\n");
         printf("\tp(ID change) = %f\n", parameters.p_identity_change);
         printf("\tp(move) = %f\n", parameters.p_move);
