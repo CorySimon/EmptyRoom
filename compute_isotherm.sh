@@ -3,7 +3,9 @@
 ###
 #   Compute adsorption isotherm at pressures in pressures.txt
 ###
-adsorbate="CH4"
+adsorbate="N2"
+
+grab_isosteric_heat=true
 
 # check that cssrs are present and elements are present in force field
 ./check_elems_in_cssrs.sh
@@ -29,8 +31,10 @@ cat structurelist.txt | while read structure
 do
     echo -e "\nComputing $adsorbate adsorbation isotherm in $structure at T=$T K"
     
- #     echo -e "\tWriting the grid"
+    echo -e "\tWriting the grid"
  #     ./writegrid $structure $adsorbate
+    ./writegrid $structure N_in_N2
+ #     ./writegrid $structure Coulomb
 
     for ((i=0; i<$npressures; i++))
     do  
@@ -50,15 +54,28 @@ do
     rho=($rho)
     rho=${rho[3]} # kg/m3
     echo "rho=$rho"
-    echo "Crystal density: $rho kg/m3" > output_files/${structure}_${adsorbate}_isotherm_${T}K.csv
-    echo "Pressure(Pa),Loading(mol/m3)" >> output_files/${structure}_${adsorbate}_isotherm_${T}K.csv
+    
+    # define filename for compiled isotherm data
+    forcefield=$(grep "Forcefield" simulation.input | awk '{print $2}')
+    isothermfilename=output_files/${structure}_${adsorbate}_${forcefield}_isotherm_${T}K.csv
+    echo "Crystal density: $rho kg/m3" > $isothermfilename
+    if [ "$grab_isosteric_heat" = true ]; then
+        echo "Pressure(Pa),Loading(mol/m3),Qst(kJ/mol)" >> $isothermfilename
+    else
+        echo "Pressure(Pa),Loading(mol/m3)" >> $isothermfilename
+    fi
      
     cat pressures.txt | while read P
     do  
         # grab info from outputfiles
         volumetricloadingline=$(grep "moles/m3" output_files/${structure}_${adsorbate}_${P}Pa_${T}K_gcmc.out)
         volumetricloadingline=($volumetricloadingline)
-        echo "$P,${volumetricloadingline[3]}" >> output_files/${structure}_${adsorbate}_isotherm_${T}K.csv
+        if [ "$grab_isosteric_heat" = true ]; then
+            isostericheat=$(grep "Isosteric" output_files/${structure}_${adsorbate}_${P}Pa_${T}K_gcmc.out | awk '{print $6}')
+            echo "$P,${volumetricloadingline[3]},${isostericheat}" >> $isothermfilename
+        else
+            echo "$P,${volumetricloadingline[3]}" >> $isothermfilename
+        fi
     done
-    echo "    Isotherms available in output_files/${structure}_${adsorbate}_isotherm_${T}K.csv"
+    echo "    Isotherms available in $isothermfilename"
 done
