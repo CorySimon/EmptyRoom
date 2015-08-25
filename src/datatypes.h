@@ -180,6 +180,8 @@ struct GCMCStats
     // average number of guests
     double N_g_avg[3];
     double N_g2_avg[3]; // squared
+    // for isosteric heat of adsorption (only single component at this point)
+    double UN_avg;
 };
 
 #endif /* DATATYPES_H_ */

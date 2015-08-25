@@ -74,8 +74,9 @@ void InitializeGCMCStats(GCMCStats & stats) {
     stats.E_gg_Coulomb_avg = 0.0;
     stats.E_gf_vdW_avg = 0.0;
     stats.E_gf_Coulomb_avg = 0.0;
-    stats.N_g_avg[0] = 0.0; stats.N_g_avg[1] = 0.0;
-    stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0;
+    stats.UN_avg = 0.0;
+    stats.N_g_avg[0] = 0.0; stats.N_g_avg[1] = 0.0; stats.N_g_avg[2] = 0.0;
+    stats.N_g2_avg[0] = 0.0; stats.N_g2_avg[1] = 0.0; stats.N_g2_avg[3] = 0.0;
 }
 
 double ReadTimer() {
@@ -1148,15 +1149,17 @@ int main(int argc, char *argv[])
             //
             if ((cycle > parameters.numequilibriumtrials) & (cycle_counter % parameters.samplefrequency == 0)) {
                 stats.N_samples += 1;
+                // divide by N samples later
                 for (int a_i = 0; a_i < parameters.numadsorbates; a_i++) {
                     stats.N_g_avg[a_i] += N_g[a_i];
                     stats.N_g2_avg[a_i] += N_g[a_i] * N_g[a_i];
                 }
-                // divide by N samples later
                 stats.E_gg_vdW_avg += E_gg_vdW_this_cycle;
                 stats.E_gg_Coulomb_avg += E_gg_Coulomb_this_cycle;
                 stats.E_gf_vdW_avg += E_gf_vdW_this_cycle;
                 stats.E_gf_Coulomb_avg += E_gf_Coulomb_this_cycle;
+                if (parameters.numadsorbates == 1)
+                    stats.UN_avg += N_g[0] * (E_gg_vdW_this_cycle + E_gf_vdW_this_cycle + E_gg_Coulomb_this_cycle + E_gf_Coulomb_this_cycle);
             }
 
             //
@@ -1270,6 +1273,12 @@ int main(int argc, char *argv[])
     stats.E_gg_Coulomb_avg = stats.E_gg_Coulomb_avg / stats.N_samples;
     stats.E_gf_vdW_avg = stats.E_gf_vdW_avg / stats.N_samples;
     stats.E_gf_Coulomb_avg = stats.E_gf_Coulomb_avg / stats.N_samples;
+    if (parameters.numadsorbates == 1)
+        stats.UN_avg = stats.UN_avg / stats.N_samples;
+    for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
+        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
+        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
+    }
 
     double sim_time = ReadTimer() - start_of_sim_time;
     
@@ -1288,7 +1297,7 @@ int main(int argc, char *argv[])
         E_gf_Coulomb_system = TotalGuestFrameworkCoulombEnergy(adsorbates, Coulomb_grid_info, Coulomb_grid);
     }
     
-    fprintf(outputfile, "    N = %d\n", adsorbates.size());
+    fprintf(outputfile, "    N = %zu\n", adsorbates.size());
     fprintf(outputfile, "    E_gg total calc'ed at end:\n"
                         "       vdW: %f K\n"
                         "       Coulomb: %f K\n", E_gg_vdW_system, E_gg_Coulomb_system);
@@ -1321,8 +1330,6 @@ int main(int argc, char *argv[])
     // write loadings component loadings to outputfile
     //
     for (int n_c = 0; n_c < parameters.numadsorbates; n_c ++) {
-        stats.N_g_avg[n_c] = 1.0 * stats.N_g_avg[n_c] / stats.N_samples;
-        stats.N_g2_avg[n_c] = 1.0 * stats.N_g2_avg[n_c] / stats.N_samples;
         double N_confidence_bound = sqrt(stats.N_g2_avg[n_c] - stats.N_g_avg[n_c] * stats.N_g_avg[n_c])/sqrt(1.0 * stats.N_samples); // sigma / sqrt(N)
 
         fprintf(outputfile, "\n    Adsorbate: %s\n", adsorbate[n_c].c_str());
@@ -1335,6 +1342,13 @@ int main(int argc, char *argv[])
     fprintf(outputfile, "     <E_gf> vdW = %f kJ/mol = %f K\n", stats.E_gf_vdW_avg * 8.314 / 1000.0, stats.E_gf_vdW_avg);
     fprintf(outputfile, "     <E_gg> Coulomb = %f kJ/mol = %f K\n", stats.E_gg_Coulomb_avg * 8.314 / 1000.0, stats.E_gg_Coulomb_avg);
     fprintf(outputfile, "     <E_gf> Coulomb = %f kJ/mol = %f K\n", stats.E_gf_Coulomb_avg * 8.314 / 1000.0, stats.E_gf_Coulomb_avg);
+
+    // isosteric heat of adsorption = kT - [<UN> - <U><N>] / [<N^2> - <N>^2 ]
+    if (parameters.numadsorbates == 1) {
+        double U_avg = stats.E_gg_vdW_avg + stats.E_gf_vdW_avg + stats.E_gg_Coulomb_avg + stats.E_gf_Coulomb_avg;
+        double dH = parameters.T - (stats.UN_avg - U_avg * stats.N_g_avg[0]) / (stats.N_g2_avg[0] - stats.N_g_avg[0] * stats.N_g_avg[0]);
+        fprintf(outputfile, "\n     Isosteric heat of adsorption = %f kJ/mol = %f K\n", dH / 1000.0 * 8.314, dH);
+    }
 
     fclose(outputfile); 
     if (parameters.writeadsorbatepositions)
