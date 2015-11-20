@@ -5,8 +5,8 @@ if (length(ARGS) == 1)
     Get UC reps for all structures in structurelist.txt
     """
     structures = readdlm("structurelist.txt")
-    cutoff = float64(ARGS[1])
-    @printf("Writing unit cell replication files with cutoff radius %f A...\n", cutoff)
+    cutoff = parse(Float64, ARGS[1])
+    @printf("\tWriting unit cell replication files with cutoff radius %f A...\n", cutoff)
 
     for k = 1:length(structures)
         framework = Framework(structures[k])
@@ -30,8 +30,8 @@ if (length(ARGS) == 2)
     """
     first arg is cutoff, second arg is structure
     """
-    cutoff = float64(ARGS[1])
-    @printf("Writing unit cell replication files for structure %s with cutoff radius %f A...\n", ARGS[2], cutoff)
+    cutoff = parse(Float64, ARGS[1])
+    @printf("\tWriting unit cell replication files for structure %s with cutoff radius %f A...\n", ARGS[2], cutoff)
     framework = Framework(ARGS[2])
     framework.check_for_atom_overlap(0.01)
         

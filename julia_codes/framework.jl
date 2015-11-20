@@ -8,7 +8,7 @@ type Framework
     """
     Stores info of a crystal structure
     """
-    structurename::String
+    structurename::AbstractString
     # unit cell sizes (Angstrom)
     a::Float64
     b::Float64
@@ -26,7 +26,7 @@ type Framework
     natoms::Int
     
     # atom identites
-    atoms::Array{String}
+    atoms::Array{AbstractString}
     
     # fractional coordinates (3 by natoms)
     fractional_coords::Array{Float64}
@@ -49,9 +49,9 @@ type Framework
     print_info::Function
 
     # constructor
-    function Framework(structurename::String)
+    function Framework(structurename::AbstractString)
         """
-        :param String structurename: name of structure. Will try to import file structurename.cssr
+        :param AbstractString structurename: name of structure. Will try to import file structurename.cssr
         """
         framework = new()
         framework.structurename = structurename
@@ -64,15 +64,15 @@ type Framework
 
         # get unit cell sizes
         line = split(readline(f)) # first line is (a, b, c)
-        framework.a = float(line[1])
-        framework.b = float(line[2])
-        framework.c = float(line[3])
+        framework.a = parse(Float64, line[1])
+        framework.b = parse(Float64, line[2])
+        framework.c = parse(Float64, line[3])
 
         # get unit cell angles. Convert to radians
         line = split(readline(f))
-        framework.alpha = float(line[1]) * pi / 180.0
-        framework.beta = float(line[2]) * pi / 180.0
-        framework.gamma = float(line[3]) * pi / 180.0
+        framework.alpha = parse(Float64, line[1]) * pi / 180.0
+        framework.beta = parse(Float64, line[2]) * pi / 180.0
+        framework.gamma = parse(Float64, line[3]) * pi / 180.0
 
         # write transformation matrix from fractional to cartesian coords
         v_unit_piped = sqrt(1.0 - cos(framework.alpha)^2 - cos(framework.beta)^2 - cos(framework.gamma)^2 +
@@ -115,8 +115,8 @@ type Framework
                 dot(framework.f_to_cartesian_mtrx[:, 3], cross(framework.f_to_cartesian_mtrx[:, 1], framework.f_to_cartesian_mtrx[:, 2]))
         
         # get atom count, initialize arrays holding coords
-        framework.natoms = int(split(readline(f))[1])
-        framework.atoms = Array(String, framework.natoms)
+        framework.natoms = parse(Int, split(readline(f))[1])
+        framework.atoms = Array(AbstractString, framework.natoms)
         framework.charges = Array(Float64, framework.natoms)
         framework.fractional_coords = zeros(Float64, 3, framework.natoms)  # fractional coordinates
 
@@ -127,11 +127,11 @@ type Framework
 
             framework.atoms[a] = line[2]
 
-            framework.fractional_coords[1, a] = float(line[3]) % 1.0 # wrap to [0,1]
-            framework.fractional_coords[2, a] = float(line[4]) % 1.0
-            framework.fractional_coords[3, a] = float(line[5]) % 1.0
+            framework.fractional_coords[1, a] = parse(Float64, line[3]) % 1.0 # wrap to [0,1]
+            framework.fractional_coords[2, a] = parse(Float64, line[4]) % 1.0
+            framework.fractional_coords[3, a] = parse(Float64, line[5]) % 1.0
 
-            framework.charges[a] = float(line[14])
+            framework.charges[a] = parse(Float64, line[14])
         end
         
         close(f) # close file
@@ -258,7 +258,7 @@ type Framework
     end  # end constructor
 end  # end Framework type
 
-function write_to_cssr(framework::Framework, filename::String)
+function write_to_cssr(framework::Framework, filename::AbstractString)
     """
     Write framework object to .cssr with desired filename
     """
@@ -359,7 +359,7 @@ function consolidate_atoms_with_same_charge(framework::Framework; decimal_tol::I
     return new, charge_dict, element_dict
 end
     
-function write_unitcell_boundary_vtk(frameworkname::String)
+function write_unitcell_boundary_vtk(frameworkname::AbstractString)
     """
     Write unit cell boundary as a .vtk file for visualizing the unit cell.
     """
@@ -391,13 +391,13 @@ function write_unitcell_boundary_vtk(frameworkname::String)
     @printf(".vtk available at: %s\n", homedir() * "/PEGrid_output/" * framework.structurename * ".vtk")
 end
 
-function replicate_cssr_to_xyz(frameworkname::String; rep_factors::Array{Int} = [1, 1, 1])
+function replicate_cssr_to_xyz(frameworkname::AbstractString; rep_factors::Array{Int} = [1, 1, 1])
     """
     Converts a .cssr crystal structure file to .xyz
     Replicates unit cell into rep_factor by rep_factor by rep_factor supercell.
     The primitive unit cell will be in the middle.
 
-    :param String frameworkname: name of crystal structure
+    :param AbstractString frameworkname: name of crystal structure
     :param Array{Int} rep_factor: number of times to replicate unit cell
     """
     framework = Framework(frameworkname)
