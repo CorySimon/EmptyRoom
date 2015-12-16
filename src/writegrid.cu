@@ -90,6 +90,8 @@ int main(int argc, char *argv[]) {
         printf("Read simulation.input\n");
     if ((parameters.verbose) & (parameters.Coulomb_grid_flag))
         printf("----------------   Coloumb Grid. -----------------------\n");
+    if (parameters.gridoutputformat == "cube")
+        printf("Writing grid in .cube format. Write in .txt for GCMC.\n");
 
     // Get unit cell replication factors.
     //    only need UC to be once the cutoff
@@ -198,9 +200,9 @@ int main(int argc, char *argv[]) {
     }
     else if (parameters.gridoutputformat == "cube") {  // for visualization with VisIt
         if (! parameters.Coulomb_grid_flag)
-            sprintf(gridfilename, "/sim_data/data/grids/vdW/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
+            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/vdW/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
         else
-            sprintf(gridfilename, "/sim_data/data/grids/Coulomb/%s.cube", framework.name.c_str());
+            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/Coulomb/%s.cube", framework.name.c_str());
 
         gridfile = fopen(gridfilename, "w");
         
