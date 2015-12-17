@@ -91,6 +91,8 @@ void ReadSimulationInputFile(GridParameters & parameters) {
             simfile >> parameters.feynmanhibbs;
         if (word=="verbosemode")
             simfile >> parameters.verbose;
+        if (word == "sim_data_directory")
+            simfile >> parameters.sim_data_directory;
     }
 
     // check for missing
@@ -226,6 +228,8 @@ void ReadSimulationInputFile(GCMCParameters & parameters) {
             simfile >> parameters.writepositionfrequency;
         if (word=="NumSnapshots")
             simfile >> parameters.num_snapshots;
+        if (word == "sim_data_directory")
+            simfile >> parameters.sim_data_directory;
     }
 
     // check for missing

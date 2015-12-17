@@ -190,9 +190,9 @@ int main(int argc, char *argv[]) {
     char gridfilename[512];
     if (parameters.gridoutputformat == "txt") {  // format I  made up for Henry coefficient and GCMC calcs
         if (! parameters.Coulomb_grid_flag)
-            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
+            sprintf(gridfilename, "%s/sim_data/grids/vdW/%s_%s_%s.txt", parameters.sim_data_directory.c_str(), framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
         else
-            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/Coulomb/%s.txt", framework.name.c_str());
+            sprintf(gridfilename, "%s/sim_data/grids/Coulomb/%s.txt", parameters.sim_data_directory.c_str(), framework.name.c_str());
         gridfile = fopen(gridfilename, "w");
         fprintf(gridfile, "%d %d %d  = (parameters.N_x,parameters.N_y,parameters.N_z)"
                                            "grid points (grid is in fractional coords)." 
@@ -200,9 +200,9 @@ int main(int argc, char *argv[]) {
     }
     else if (parameters.gridoutputformat == "cube") {  // for visualization with VisIt
         if (! parameters.Coulomb_grid_flag)
-            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/vdW/%s_%s_%s.cube", framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
+            sprintf(gridfilename, "%s/sim_data/grids/vdW/%s_%s_%s.cube", parameters.sim_data_directory.c_str(), framework.name.c_str(), parameters.adsorbatebead.c_str(), forcefield.name.c_str());
         else
-            sprintf(gridfilename, "/home/corymsimon/sim_data/grids/Coulomb/%s.cube", framework.name.c_str());
+            sprintf(gridfilename, "%s/sim_data/grids/Coulomb/%s.cube", parameters.sim_data_directory.c_str(), framework.name.c_str());
 
         gridfile = fopen(gridfilename, "w");
         

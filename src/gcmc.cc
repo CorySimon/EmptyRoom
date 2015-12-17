@@ -111,12 +111,17 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
     // Compute potential energy of adsorbate molecule adsorbateid in the vector adsorbates
     // Energy contribution from other guests.
     double E_gg = 0.0; // initiate
+
+    // construct variables up here for speed
+    int this_bead_type, other_bead_type;
+    boo::vector<double> dx;
+    double r2, sigma_over_r_sixth;
     
     // for each bead in this adsorbate molecule
     for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
         // get fractional coord of this bead in this adsorbate
         boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
-        int this_bead_type = adsorbates[adsorbateid].beadtypes[b_this];
+        this_bead_type = adsorbates[adsorbateid].beadtypes[b_this];
 
         // for each other guest molecule 
         for (int k = 0 ; k < adsorbates.size(); k++) {
@@ -126,11 +131,11 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
 
             // get energy contribution from each bead in other adsorbate molecule
             for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
-                int other_bead_type = adsorbates[k].beadtypes[b_other];
+                other_bead_type = adsorbates[k].beadtypes[b_other];
                 boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
 
                 // distance in fractional coords
-                boo::vector<double> dx = xf_this_bead - xf_other_bead;
+                dx = xf_this_bead - xf_other_bead;
 
                 // take nearest image
                 for (int i_ = 0; i_ < 3; i_++) {
@@ -138,15 +143,15 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
                     dx[i_] = (dx[i_] < -0.5 * uc_reps[i_]) ? dx[i_] + 1.0*uc_reps[i_] : dx[i_]; 
 //                    dx_f[i_] = dx_f[i_] - uc_reps[i_] * round(dx_f[i_] / uc_reps[i_]);
 //                    // assert within bounds #todo remove later
-                    assert(dx[i_] <= 0.5 * uc_reps[i_]);
-                    assert(dx[i_] >= -0.5 * uc_reps[i_]);
+//                    assert(dx[i_] <= 0.5 * uc_reps[i_]);
+//                    assert(dx[i_] >= -0.5 * uc_reps[i_]);
                 }
 
                 // distance in Cartesian
                 dx = prod(t_matrix, dx);
                 
                 // Compute LJ potential
-                double r2 = inner_prod(dx, dx);  // r^2
+                r2 = inner_prod(dx, dx);  // r^2
                 if (r2 < r_cutoff_squared) {
                     // if VERY close, return huge number to prevent overflow and make OVERLAP boolean true.
                     if (r2 < min_r) {
@@ -154,7 +159,7 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
                         return 100000000000000.0; // overwrite if too small
                     }
 
-                    double sigma_over_r_sixth = pow(sigma_squared_matrix(this_bead_type, other_bead_type) / r2, 3.0); 
+                    sigma_over_r_sixth = pow(sigma_squared_matrix(this_bead_type, other_bead_type) / r2, 3.0); 
                     E_gg += 4.0 * epsilon_matrix(this_bead_type, other_bead_type) * sigma_over_r_sixth * (sigma_over_r_sixth - 1.0);
                 }
             }  // end loop over BEADS of other guest molecule
@@ -498,7 +503,8 @@ int main(int argc, char *argv[])
         if (parameters.verbose) 
             printf("Importing energy grid %d\n", n_c);
         char gridfilename[512];
-        sprintf(gridfilename, "/home/cory/sim_data/grids/vdW/%s_%s_%s.txt", framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
+        sprintf(gridfilename, "%s/sim_data/grids/vdW/%s_%s_%s.txt", parameters.sim_data_directory.c_str(), 
+            framework.name.c_str(), int_to_beadlabel[n_c].c_str(), forcefield.name.c_str());
 
         std::ifstream gridfile(gridfilename); // input file stream
         if (gridfile.fail()) {
@@ -585,7 +591,7 @@ int main(int argc, char *argv[])
         if (parameters.verbose) 
             printf("Importing Coulomb grid\n");
         char Coulombgridfilename[512];
-        sprintf(Coulombgridfilename, "/home/corymsimon/sim_data/grids/Coulomb/%s.txt", framework.name.c_str());
+        sprintf(Coulombgridfilename, "%s/sim_data/grids/Coulomb/%s.txt", parameters.sim_data_directory.c_str(), framework.name.c_str());
 
         std::ifstream gridfile(Coulombgridfilename); // input file stream
         if (gridfile.fail()) {
@@ -697,7 +703,7 @@ int main(int argc, char *argv[])
     if (parameters.writeadsorbatepositions) {
         printf("Writing adsorbate positions every %d snapshots after equilibration," 
                 "for a total of %d snapshots...\n", parameters.writepositionfrequency, parameters.num_snapshots);
-        sprintf(positionfilename, "/home/cory/sim_data/adsorbate_positions_%s_P_%.1f_T_%dK.xyz", framework.name.c_str(), fugacity[0], parameters.T);
+        sprintf(positionfilename, "%s/sim_data/adsorbate_positions_%s_P_%.1f_T_%dK.xyz", parameters.sim_data_directory.c_str(), framework.name.c_str(), fugacity[0], parameters.T);
         adsorbatepositionfile = fopen(positionfilename, "w");
     }
 
