@@ -30,7 +30,6 @@ namespace boo = boost::numeric::ublas;
 #include "Forcefield.h"
 #include "GetEwaldParams.h"
 #include "write_settings_to_outputfile_gcmc.h"
-#include <sys/time.h>
 //#include "pocketblocking.h"
 #define min_r .1  // don't want to divide by zero...
 
@@ -114,13 +113,18 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
 
     // construct variables up here for speed
     int this_bead_type, other_bead_type;
-    boo::vector<double> dx;
+    boo::vector<double> dx(3);
+    boo::vector<double> xf_this_bead(3);
+    boo::vector<double> xf_other_bead(3);
     double r2, sigma_over_r_sixth;
     
     // for each bead in this adsorbate molecule
     for (int b_this = 0; b_this < adsorbates[adsorbateid].nbeads; b_this++) {
         // get fractional coord of this bead in this adsorbate
-        boo::matrix_column<boo::matrix<double> > xf_this_bead(adsorbates[adsorbateid].bead_xyz_f, b_this);
+        xf_this_bead[0] = adsorbates[adsorbateid].bead_xyz_f(0, b_this);
+        xf_this_bead[1] = adsorbates[adsorbateid].bead_xyz_f(1, b_this);
+        xf_this_bead[2] = adsorbates[adsorbateid].bead_xyz_f(2, b_this);
+        // get type of this bead
         this_bead_type = adsorbates[adsorbateid].beadtypes[b_this];
 
         // for each other guest molecule 
@@ -132,7 +136,9 @@ double GuestGuestvdWEnergy(std::vector<Adsorbate> & adsorbates,
             // get energy contribution from each bead in other adsorbate molecule
             for (int b_other = 0; b_other < adsorbates[k].nbeads; b_other++) {
                 other_bead_type = adsorbates[k].beadtypes[b_other];
-                boo::matrix_column<boo::matrix<double> > xf_other_bead(adsorbates[k].bead_xyz_f, b_other);
+                xf_other_bead[0] = adsorbates[k].bead_xyz_f(0, b_other);
+                xf_other_bead[1] = adsorbates[k].bead_xyz_f(1, b_other);
+                xf_other_bead[2] = adsorbates[k].bead_xyz_f(2, b_other);
 
                 // distance in fractional coords
                 dx = xf_this_bead - xf_other_bead;
